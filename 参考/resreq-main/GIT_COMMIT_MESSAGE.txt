@@ -1,0 +1,38 @@
+feat: 完善虚拟机申请导出功能和权限申请搜索功能
+
+## 主要变更
+
+### 1. 虚拟机申请数据源统一
+- 修复Dashboard与导出数据不一致问题
+- 统一使用vm_requests表作为唯一数据源
+- 新增虚拟机申请专用API和控制器
+- 完成数据迁移：resource_requests → vm_requests（8条记录）
+
+### 2. 虚拟机申请页面优化
+- 删除列表中的"复制"按钮
+- 简化用户操作流程
+
+### 3. 用户权限申请搜索功能
+- 新增搜索按钮和状态筛选功能
+- 支持组合搜索（关键词+状态）
+- 添加搜索反馈和快捷操作
+
+## 新增文件
+- backend/src/controllers/vmRequestController.js
+- backend/src/routes/vmRequest.js
+- frontend/src/api/vmRequest.js
+
+## 修改文件
+- backend/server.js (注册vm_requests路由)
+- frontend/src/views/Dashboard.vue (修复虚拟机申请显示)
+- frontend/src/views/CreateRequest.vue (删除复制按钮)
+- frontend/src/views/PermissionRequest.vue (添加搜索功能)
+
+## 测试验证
+- ✅ 导出功能包含所有虚拟机申请
+- ✅ 权限控制正常（管理员/普通用户）
+- ✅ 搜索功能正常工作
+- ✅ 数据迁移完整，无数据丢失
+
+Closes #虚拟机申请导出问题
+Closes #权限申请搜索需求

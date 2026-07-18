@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "paths": {
+      "@aiops/shared": ["../shared/src"],
+      "@aiops/shared/ui": ["../shared/src/ui.ts"],
+      "@aiops/shared/hooks": ["../shared/src/hooks.ts"],
+      "@aiops/shared/store": ["../shared/src/store.ts"],
+      "@aiops/shared/specs": ["../shared/src/specs.ts"],
+      "@aiops/shared/workflow": ["../shared/src/workflow.ts"]
+    }
+  },
+  "include": ["src", "vite-env.d.ts"]
+}

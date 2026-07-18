@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: vmconf-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root123456
+      MYSQL_DATABASE: vmconf_db
+      MYSQL_USER: vmconf_user
+      MYSQL_PASSWORD: vmconf_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./database-design.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - vmconf-network
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+  backend:
+    build: ./backend
+    container_name: vmconf-backend
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: vmconf_user
+      DB_PASSWORD: vmconf_password
+      DB_NAME: vmconf_db
+      JWT_SECRET: change_this_to_secure_random_string_in_production
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mysql
+    networks:
+      - vmconf-network
+    volumes:
+      - ./backend/uploads:/app/uploads
+
+  frontend:
+    build: ./frontend
+    container_name: vmconf-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    networks:
+      - vmconf-network
+
+volumes:
+  mysql-data:
+
+networks:
+  vmconf-network:
+    driver: bridge

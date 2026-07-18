@@ -1,0 +1,1 @@
+import{r as e}from"./router-DGkC5MWb.js";import{c as o,e as u}from"./specs-store-CFgEvlNF.js";function i(c){const[s,t]=e.useState([]),r=e.useCallback(()=>{t(o())},[]);return e.useEffect(()=>(r(),u(r)),[r]),{orders:s,allOrders:s,refresh:r}}export{i as u};

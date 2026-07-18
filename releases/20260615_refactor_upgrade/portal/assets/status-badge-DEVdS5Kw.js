@@ -1,0 +1,4 @@
+import{Y as i,j as t}from"./index-Bt6PAe0q.js";import{B as l}from"./badge-19BBJP09.js";function e(n){return i(n.enteredAt,n.completedAt)}function m(n=[]){return n.map(a=>`${a.label}: ${a.slaTarget||"-"}`).join(`
+`)}function c(n=[]){return n.map(a=>`${a.label}: ${e(a)}`).join(`
+`)}function f(n=[]){return n.map(a=>`${a.label}｜SLA ${a.slaTarget||"-"}｜耗时 ${e(a)}｜进入 ${a.enteredAt||"-"}｜完成 ${a.completedAt||"-"}`).join(`
+`)}function b(n){return e(n)}const o={pending:{label:"待处理",variant:"warning"},reviewing:{label:"评审中",variant:"info"},processing:{label:"处理中",variant:"info"},plan_confirming:{label:"待确认方案",variant:"info"},delivering:{label:"交付中",variant:"error"},completed:{label:"已完成",variant:"success"},confirmed:{label:"已验收",variant:"success"},archived:{label:"已归档",variant:"secondary"}};function g({status:n,className:a}){const r=o[n];return t.jsx(l,{variant:r.variant,className:a,children:r.label})}export{g as S,c as a,m as b,f as c,b as g};

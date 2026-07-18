@@ -1,0 +1,603 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IT基础资源申请辅助填表页面思路规划</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --paper: #ffffff;
+      --ink: #162033;
+      --muted: #5e6b80;
+      --line: #d8dee8;
+      --blue: #2457d6;
+      --green: #0b7a55;
+      --amber: #a35f00;
+      --red: #b42318;
+      --soft-blue: #edf3ff;
+      --soft-green: #ebf8f2;
+      --soft-amber: #fff6df;
+      --soft-red: #fff0ee;
+      --soft-gray: #f8fafc;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", Arial, sans-serif;
+      line-height: 1.68;
+      letter-spacing: 0;
+    }
+
+    .page {
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 30px 22px 54px;
+    }
+
+    header,
+    section {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    header { padding: 30px; }
+
+    main {
+      display: grid;
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    section { padding: 22px; }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--blue);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin: 0;
+      line-height: 1.35;
+    }
+
+    h1 { font-size: 30px; }
+    h2 { margin-bottom: 12px; font-size: 21px; }
+    h3 { margin: 16px 0 8px; font-size: 16px; }
+    p { margin: 8px 0; }
+    ul, ol { margin: 8px 0 0 20px; padding: 0; }
+    li { margin: 5px 0; }
+
+    table {
+      width: 100%;
+      margin-top: 10px;
+      border-collapse: collapse;
+      border: 1px solid var(--line);
+      font-size: 14px;
+    }
+
+    th,
+    td {
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      vertical-align: top;
+      text-align: left;
+    }
+
+    th {
+      background: #eef3fb;
+      font-weight: 700;
+    }
+
+    .lead {
+      max-width: 930px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    .callout {
+      margin-top: 18px;
+      padding: 16px;
+      background: var(--soft-blue);
+      border: 1px solid #cbdcff;
+      border-left: 5px solid var(--blue);
+      border-radius: 8px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .box {
+      padding: 15px;
+      background: #fbfcff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    .box h3:first-child { margin-top: 0; }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .step {
+      min-height: 122px;
+      padding: 13px;
+      background: var(--soft-gray);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    .step b {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--blue);
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      margin: 3px 4px 3px 0;
+      padding: 3px 9px;
+      border: 1px solid #cbdcff;
+      border-radius: 999px;
+      background: var(--soft-blue);
+      color: var(--blue);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .tag.green { background: var(--soft-green); color: var(--green); border-color: #bde8d3; }
+    .tag.amber { background: var(--soft-amber); color: var(--amber); border-color: #efd597; }
+    .tag.red { background: var(--soft-red); color: var(--red); border-color: #ffc9c4; }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .status {
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .status strong { display: block; margin-bottom: 4px; }
+    .status.standard { border-left: 4px solid var(--green); }
+    .status.focus { border-left: 4px solid var(--amber); }
+    .status.nonstandard { border-left: 4px solid var(--red); }
+    .status.pending { border-left: 4px solid var(--blue); }
+
+    footer {
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    @media (max-width: 900px) {
+      .grid-2,
+      .grid-3,
+      .status-grid {
+        grid-template-columns: 1fr;
+      }
+
+      h1 { font-size: 25px; }
+
+      .page {
+        padding: 18px 14px 40px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <p class="eyebrow">思路规划 / 资源清单联动 / 架构评审前材料准备</p>
+      <h1>IT基础资源申请辅助填表页面思路规划</h1>
+      <p class="lead">
+        本规划面向应用团队申请服务器、对象存储、负载均衡、RabbitMQ 等基础资源时的填表场景。页面以资源清单为起点，把资源规格说明、申请表字段、填写参考和评审关注点联动起来，帮助用户在架构评审前形成更完整、更统一的资源申请材料。
+      </p>
+      <div class="callout">
+        <strong>核心定位：</strong>
+        建设一个“资源清单联动的基础资源申请辅助填表工具”。它不替代资源架构评审，不自动做资源选型或开通，只把用户需求梳理成可沟通、可提交、可检查的结构化材料。
+      </div>
+    </header>
+
+    <main>
+      <section>
+        <h2>一、建设背景与当前痛点</h2>
+        <div class="grid-2">
+          <div class="box">
+            <h3>应用团队侧</h3>
+            <ul>
+              <li>申请基础资源时需要填写大量表单字段，很多字段并不是业务人员日常熟悉的表达。</li>
+              <li>不同资源的规格、容量口径、网络参数、安全要求和评审关注点不同，用户容易填错、漏填或描述不一致。</li>
+              <li>资源清单能告诉用户“有哪些资源”，但没有直接告诉用户“申请这类资源应怎样描述需求”。</li>
+              <li>低成熟度用户可能只知道业务场景，高成熟度用户希望快速校验已有申请，两类用户都需要更合适的引导方式。</li>
+            </ul>
+          </div>
+          <div class="box">
+            <h3>IT团队侧</h3>
+            <ul>
+              <li>评审前需要反复确认环境、规模、容量、访问方式、安全要求、高可用要求等基础信息。</li>
+              <li>同类资源申请材料口径不统一，人工整理和补齐成本较高。</li>
+              <li>资源标准与申请表缺少联动，标准变更后用户仍可能沿用旧口径填写。</li>
+              <li>评审人员难以及时区分标准资源申请、需要重点说明的申请、非标准诉求和仍需澄清的内容。</li>
+            </ul>
+          </div>
+        </div>
+        <div class="callout">
+          <strong>规划主线：</strong>
+          从“用户不知道如何按资源标准填表”出发，将目标收束为“让资源清单直接服务于申请表填写”，最终价值是减少错漏填、减少反复沟通、提升架构评审前材料质量。
+        </div>
+      </section>
+
+      <section>
+        <h2>二、核心定位与边界</h2>
+        <div class="grid-3">
+          <div class="box">
+            <h3>做什么</h3>
+            <ul>
+              <li>提供简单 Web 前端或轻量原型。</li>
+              <li>展示首版资源清单和规格说明。</li>
+              <li>按资源类型联动申请表字段、填写参考和评审关注点。</li>
+              <li>提示缺项、待确认项和需要重点说明的内容。</li>
+              <li>输出评审前沟通和提交所需的结构化材料。</li>
+            </ul>
+          </div>
+          <div class="box">
+            <h3>不做什么</h3>
+            <ul>
+              <li>不接入 AI 模型。</li>
+              <li>不联动 ITSM、CMDB、工单系统。</li>
+              <li>不做审批流转、资源自动开通、自动架构选型。</li>
+              <li>不替代资源架构评审。</li>
+              <li>不建设复杂后台、统一研发门户或独立策略引擎。</li>
+            </ul>
+          </div>
+          <div class="box">
+            <h3>交付价值</h3>
+            <ul>
+              <li>应用团队更容易知道该填什么、怎么填、哪里还不确定。</li>
+              <li>IT团队在评审前拿到更完整的输入材料。</li>
+              <li>资源清单从静态目录变成填表过程中的参考和约束。</li>
+              <li>非标准诉求更早暴露，避免混在普通申请中。</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>三、L0-L5 用户画像分层</h2>
+        <p>
+          L0-L5 用于理解不同用户的填表能力和需要的引导深度，不一定直接作为页面入口暴露给用户。页面可以通过入口、模板、提示、追问和检查能力覆盖这些差异。
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>层级</th>
+              <th>用户特征</th>
+              <th>典型表达</th>
+              <th>辅助引导重点</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>L0</td>
+              <td>代填或完全不确定型</td>
+              <td>“领导让我申请一套测试环境。”</td>
+              <td>提供场景模板，允许标记待确认字段，输出需找业务或技术负责人确认的问题清单。</td>
+            </tr>
+            <tr>
+              <td>L1</td>
+              <td>只知道业务场景型</td>
+              <td>“订单创建后要通知库存和物流。”</td>
+              <td>从业务动作引导到候选资源，不直接承诺最终资源结论，优先补齐用途、环境、访问对象和规模信息。</td>
+            </tr>
+            <tr>
+              <td>L2</td>
+              <td>技术子域明确型</td>
+              <td>“我们需要系统间异步解耦。”</td>
+              <td>把技术能力映射到候选资源类型，帮助用户确认是消息队列、存储、流量入口还是计算资源诉求。</td>
+            </tr>
+            <tr>
+              <td>L3</td>
+              <td>资源明确但规格不清型</td>
+              <td>“我要一个 RabbitMQ，但不知道选多大。”</td>
+              <td>展示规格档位、容量口径和填写参考，用少量问题引导选择标准规格或标记为待确认。</td>
+            </tr>
+            <tr>
+              <td>L4</td>
+              <td>架构和规格较清楚型</td>
+              <td>“生产 RabbitMQ 中型，高可用，预计 5000 msg/s。”</td>
+              <td>快速生成申请表，只追问缺失字段、冲突信息和评审前必须说明的内容。</td>
+            </tr>
+            <tr>
+              <td>L5</td>
+              <td>检查已有申请或资源清单型</td>
+              <td>“这份申请是否完整，是否还缺评审信息？”</td>
+              <td>检查完整性、待确认项、重点关注项和非标准诉求，形成评审前摘要。</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>四、页面主线</h2>
+        <p>
+          页面主线围绕“资源清单如何帮助用户完成申请表”展开，而不是围绕底层配置或复杂规则展开。用户可以从资源、场景或已有材料进入，但最终都回到申请信息补齐和评审前材料输出。
+        </p>
+        <div class="flow">
+          <div class="step">
+            <b>1. 选择入口</b>
+            <p>按资源清单、按业务/技术场景、检查已有申请或资源清单。</p>
+          </div>
+          <div class="step">
+            <b>2. 关联资源</b>
+            <p>确认资源类型或候选资源，带出标准规格和适用场景。</p>
+          </div>
+          <div class="step">
+            <b>3. 辅助填表</b>
+            <p>显示该资源相关字段、填写参考和常见口径。</p>
+          </div>
+          <div class="step">
+            <b>4. 缺项提示</b>
+            <p>围绕环境、规模、容量、安全、高可用等信息做补充确认。</p>
+          </div>
+          <div class="step">
+            <b>5. 输出材料</b>
+            <p>形成结构化申请信息、缺项清单、待确认项和评审关注点摘要。</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>五、页面区域构想</h2>
+        <div class="grid-2">
+          <div class="box">
+            <h3>资源清单区</h3>
+            <ul>
+              <li>展示服务器、对象存储、负载均衡、RabbitMQ 四类首版资源。</li>
+              <li>每类资源呈现用途、典型场景、规格口径和适用边界。</li>
+              <li>入口不只是目录浏览，也服务于后续申请表字段联动。</li>
+            </ul>
+          </div>
+          <div class="box">
+            <h3>辅助填表区</h3>
+            <ul>
+              <li>根据资源类型展示相关申请字段，减少无关字段干扰。</li>
+              <li>优先使用选项、数字、容量单位和简短说明，减少自由文本歧义。</li>
+              <li>对不确定信息允许标记为待确认，而不是强行填写。</li>
+            </ul>
+          </div>
+          <div class="box">
+            <h3>标准说明 / 评审关注区</h3>
+            <ul>
+              <li>说明资源规格、容量口径、填写示例和常见误区。</li>
+              <li>提示生产环境、公网访问、高可用、大规格、敏感数据等评审关注点。</li>
+              <li>帮助用户理解为什么某些字段必须补充。</li>
+            </ul>
+          </div>
+          <div class="box">
+            <h3>输出预览区</h3>
+            <ul>
+              <li>预览结构化申请信息。</li>
+              <li>单独列出缺项、待确认项和重点说明项。</li>
+              <li>支持复制或导出为简单文档、表格材料，便于评审前沟通。</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>六、首版资源范围</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>资源类型</th>
+              <th>清单中需要讲清的内容</th>
+              <th>联动到申请表的重点信息</th>
+              <th>评审前关注点</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>服务器</td>
+              <td>规格档位、CPU/内存/磁盘、操作系统、网络区域、适用负载。</td>
+              <td>环境、数量、规格、系统盘/数据盘、用途、网络区域、运行系统。</td>
+              <td>规格依据、生产高可用、安全域、容量增长、是否存在已有资源复用。</td>
+            </tr>
+            <tr>
+              <td>对象存储</td>
+              <td>容量、访问频率、生命周期、权限边界、是否需要公网访问。</td>
+              <td>容量、年增长量、文件类型、访问方式、保留周期、权限范围。</td>
+              <td>敏感数据、公网暴露、留存周期、权限控制、容量增长依据。</td>
+            </tr>
+            <tr>
+              <td>负载均衡</td>
+              <td>内外网入口、协议端口、域名证书、QPS、后端服务和健康检查。</td>
+              <td>入口类型、域名、协议、端口、证书、后端实例、预估流量。</td>
+              <td>公网访问、安全策略、证书管理、后端可用性、容量依据。</td>
+            </tr>
+            <tr>
+              <td>RabbitMQ</td>
+              <td>规格档位、吞吐量、连接数、队列数量、消息保留、高可用要求。</td>
+              <td>业务系统、环境、用途、规格、消息吞吐、保留时间、高可用。</td>
+              <td>生产高可用、消息积压、跨系统共享、权限边界、非标准吞吐诉求。</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>七、资源清单与申请表联动方式</h2>
+        <p>
+          资源清单不是静态目录。用户选中或确认某类资源后，页面应同步呈现该资源的申请字段、规格说明、填写参考和评审关注点，让“看清单”和“填申请”成为同一个过程。
+        </p>
+        <div class="grid-3">
+          <div class="box">
+            <h3>按资源清单进入</h3>
+            <p>适合 L3-L4 用户。用户已经知道要申请什么资源，页面直接带出该资源的字段、规格和常见评审关注点。</p>
+          </div>
+          <div class="box">
+            <h3>按业务 / 技术场景进入</h3>
+            <p>适合 L0-L2 用户。页面先基于场景给出候选资源和需要确认的问题，再进入对应申请表补齐。</p>
+          </div>
+          <div class="box">
+            <h3>检查已有申请 / 清单</h3>
+            <p>适合 L5 用户。页面重点检查材料完整性、描述口径、待确认项和是否存在非标准诉求。</p>
+          </div>
+        </div>
+        <div class="status-grid">
+          <div class="status standard">
+            <strong>标准资源</strong>
+            信息基本完整，规格属于清单内标准档位，可形成常规申请材料。
+          </div>
+          <div class="status focus">
+            <strong>需重点关注 / 附加说明</strong>
+            涉及生产、高可用、公网访问、大规格、敏感数据等，需要在摘要中提示。
+          </div>
+          <div class="status nonstandard">
+            <strong>非标准诉求</strong>
+            超出标准规格或现有清单能力，页面只整理诉求和理由，不承诺可直接提交。
+          </div>
+          <div class="status pending">
+            <strong>待澄清</strong>
+            关键字段缺失或描述不明确，输出待确认问题，避免混入正式字段。
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>八、缺项提示与沟通减少机制</h2>
+        <p>
+          缺项提示的目的不是做复杂判断，而是把 IT 团队高频反复追问的问题前置到填表页面中。首版应优先覆盖影响评审判断的高频信息。
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>提示类别</th>
+              <th>典型问题</th>
+              <th>减少沟通的作用</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>环境与用途</td>
+              <td>用于开发、测试、预生产还是生产？承载哪个业务系统？</td>
+              <td>避免 IT 团队反复确认资源重要性和评审深度。</td>
+            </tr>
+            <tr>
+              <td>规模与容量</td>
+              <td>预计用户量、并发、吞吐、容量、增长量或峰值是多少？</td>
+              <td>让规格选择有依据，减少“先给一个差不多”的模糊申请。</td>
+            </tr>
+            <tr>
+              <td>安全与访问</td>
+              <td>是否公网访问？是否涉及敏感数据？访问权限如何控制？</td>
+              <td>提前暴露安全和网络边界问题，便于评审前补充说明。</td>
+            </tr>
+            <tr>
+              <td>可用性要求</td>
+              <td>是否生产高可用？是否需要备份、容灾、保留或恢复要求？</td>
+              <td>把高可用和数据保护诉求从资源规格中单独明确出来。</td>
+            </tr>
+            <tr>
+              <td>现状与变更</td>
+              <td>是否已有资源？当前问题是什么？目标变更后的规模是什么？</td>
+              <td>区分新申请、扩容、变更和补充材料，减少误判。</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>九、输出结果</h2>
+        <div class="grid-3">
+          <div class="box">
+            <h3>结构化资源申请信息</h3>
+            <p>按资源类型整理环境、用途、规格、容量、访问、安全和高可用等字段，形成统一口径的申请材料。</p>
+          </div>
+          <div class="box">
+            <h3>缺项清单与待确认项</h3>
+            <p>把用户不确定、仍缺失或描述冲突的信息单独列出，便于评审前找对应负责人确认。</p>
+          </div>
+          <div class="box">
+            <h3>评审关注点摘要</h3>
+            <p>汇总生产环境、公网访问、大规格、敏感数据、高可用、非标准诉求等需要在评审中重点说明的内容。</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>十、首版范围与暂不纳入</h2>
+        <div class="grid-2">
+          <div class="box">
+            <h3>首版建议纳入</h3>
+            <ul>
+              <li>单页 Web 前端或轻量原型。</li>
+              <li>四类资源：服务器、对象存储、负载均衡、RabbitMQ。</li>
+              <li>多入口：按资源清单、按业务/技术场景、检查已有申请或资源清单。</li>
+              <li>资源清单联动申请字段、规格说明、填写参考和评审关注点。</li>
+              <li>缺项提示、待确认项、重点关注项、非标准诉求提示。</li>
+              <li>结构化申请信息预览，以及复制或导出简单材料。</li>
+            </ul>
+          </div>
+          <div class="box">
+            <h3>暂不纳入</h3>
+            <ul>
+              <li>AI 模型理解和自动生成结论。</li>
+              <li>审批流、工单流转、资源自动开通。</li>
+              <li>ITSM、CMDB、工单系统或资源编排系统联动。</li>
+              <li>自动容量评估、自动架构选型、成本审批。</li>
+              <li>复杂后台配置中心、统一研发门户、独立策略引擎。</li>
+              <li>替代架构、安全、容量、成本等正式评审。</li>
+            </ul>
+          </div>
+        </div>
+        <h3>后续支撑能力</h3>
+        <p>
+          字段来源与状态、缺项追问、冲突提示、样例验证、轻量度量可以作为后续支撑能力逐步补充。它们服务于“让用户把申请材料填完整、说清楚”，不应成为首版方案的主线。
+        </p>
+        <div>
+          <span class="tag">字段来源</span>
+          <span class="tag">字段状态</span>
+          <span class="tag">缺项追问</span>
+          <span class="tag amber">冲突提示</span>
+          <span class="tag green">样例验证</span>
+          <span class="tag">轻量度量</span>
+        </div>
+      </section>
+    </main>
+
+    <footer>生成日期：2026-07-13 · 版本：思路规划版</footer>
+  </div>
+</body>
+</html>

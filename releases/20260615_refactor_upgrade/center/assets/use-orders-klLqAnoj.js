@@ -1,0 +1,1 @@
+import{r as e,k as o,o as u}from"./index-Dy1HpS6o.js";function f(n){const[s,t]=e.useState([]),r=e.useCallback(()=>{t(o())},[]);return e.useEffect(()=>(r(),u(r)),[r]),{orders:s,allOrders:s,refresh:r}}export{f as u};

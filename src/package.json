@@ -1,0 +1,22 @@
+{
+  "name": "aiops-prototype",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:portal": "npm run dev --workspace=@aiops/service-portal",
+    "dev:center": "npm run dev --workspace=@aiops/service-center",
+    "dev:orders-sync": "node ./scripts/dev-orders-sync-server.mjs",
+    "dev": "concurrently \"npm run dev:orders-sync\" \"PORTAL_DEV_PORT=3005 npm run dev:portal\" \"CENTER_DEV_PORT=3004 PORTAL_DEV_ORIGIN=http://localhost:3005 npm run dev:center\"",
+    "build": "npm run build --workspace=@aiops/shared && npm run build --workspace=@aiops/service-portal && npm run build --workspace=@aiops/service-center",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "concurrently": "^9.2.1",
+    "jsdom": "^25.0.1",
+    "vitest": "^2.1.9"
+  }
+}

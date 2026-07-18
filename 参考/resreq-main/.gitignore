@@ -1,0 +1,113 @@
+# 依赖目录
+node_modules/
+bower_components/
+
+# 构建产物
+dist/
+build/
+*.log
+
+# 环境变量文件
+.env
+.env.local
+.env.*.local
+
+# IDE和编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 测试覆盖率
+coverage/
+.nyc_output/
+
+# 临时文件
+*.tmp
+*.temp
+uploads/
+*.sql
+
+# 日志文件
+*.log
+server.log
+
+# Docker
+.dockerignore
+
+# 备份文件
+*.bak
+*.backup
+
+# 系统文件
+Thumbs.db
+.DS_Store
+
+# Kubernetes配置中的敏感信息（如果包含真实密码）
+# k8s/configmap.yaml  # 注意：如果包含真实密码，需要加密或使用模板
+
+# 文档生成
+*.iml
+
+# === 补充：测试和调试文件 ===
+# 前端测试文件
+frontend/test-*.html
+frontend/test-*.js
+frontend/debug-*.html
+frontend/debug-*.js
+frontend/diagnose.html
+frontend/browser-console-debug.js
+frontend/simple-test.html
+frontend/vanilla-test.html
+
+# 后端测试文件
+backend/test-*.js
+backend/check-*.js
+backend/diagnose-*.js
+backend/update-*.js
+backend/verify-*.sql
+backend/test-results.json
+
+# === 补充：Excel模板文件 ===
+*.xlsx
+*.xls
+
+# === 补充：临时调试文档 ===
+frontend/*FIX*.md
+frontend/*SOLUTION*.md
+frontend/*VERIFICATION*.md
+frontend/HARDCODE-*.md
+frontend/PERMISSION-*.md
+
+# === 补充：项目临时文档 ===
+BUILD_IMAGES_GUIDE.md
+DEPLOYMENT_CHECKLIST.md
+K8S_APP_CALL_CHAIN.md
+K8S_DEPLOYMENT_GUIDE.md
+GITLAB_SETUP_GUIDE.md
+LOCAL_GITLAB_GUIDE.md
+
+# === 补充：Claude配置 ===
+.claude/
+
+# === 补充：根目录调试和测试文件 ===
+test-*.html
+test-*.js
+debug-*.html
+debug-*.js
+*-FIX*.md
+*-SOLUTION*.md
+*-SUMMARY*.md
+*-CHECK*.md
+
+# === 重要：调试日志处理说明 ===
+# 1. 包含console.log调试代码的源文件不应提交
+# 2. 开发时可以添加调试日志，但提交前应清理
+# 3. 如果需要调试，使用以下模式：
+#    - 创建单独的调试文件（已被忽略）
+#    - 使用条件编译的环境变量
+#    - 在开发环境中启用调试模式
+# 4. 生产代码应避免使用console.log，可使用专门的日志库
+.worktrees/

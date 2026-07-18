@@ -1,0 +1,91 @@
+import type { AssetCategory, AssetFieldDefinition } from '../types';
+
+export const ASSET_FIELD_SCHEMAS: Record<AssetCategory, AssetFieldDefinition[]> = {
+  database: [
+    { key: '资产编号', label: '资产编号', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['asset.assetId'] },
+    { key: '实例名', label: '实例名', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['asset.instance'] },
+    { key: '主机', label: '主机', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['connection.host'] },
+    { key: '端口', label: '端口', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['connection.port'] },
+    { key: '库名', label: '库名', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['connection.schema'] },
+    { key: '字符集', label: '字符集', defaultVisible: false, defaultExportable: true, sourceFieldKeys: ['connection.charset'] },
+    { key: 'HA模式', label: 'HA模式', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['ha.mode'] },
+    { key: '主节点', label: '主节点', defaultVisible: false, defaultExportable: true, sourceFieldKeys: ['ha.primary'] },
+    { key: '从节点', label: '从节点', defaultVisible: false, defaultExportable: true, sourceFieldKeys: ['ha.secondary'] },
+  ],
+  paas: [
+    { key: '集群名', label: '集群名', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['cluster.name'] },
+    { key: 'API地址', label: 'API地址', defaultVisible: false, defaultExportable: true, sourceFieldKeys: ['cluster.apiServer'] },
+    { key: '版本', label: '版本', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['cluster.version'] },
+    { key: '命名空间', label: '命名空间', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['namespace.name'] },
+    { key: '节点数', label: '节点数', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['namespace.nodeCount'] },
+    { key: '资源配额', label: '资源配额', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['namespace.resourceQuota'] },
+  ],
+  middleware: [
+    { key: 'URL', label: 'URL', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['connection.url'] },
+    { key: '端口', label: '端口', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['connection.port'] },
+    { key: '协议', label: '协议', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['connection.protocol'] },
+    { key: '控制台', label: '控制台', defaultVisible: false, defaultExportable: true, sourceFieldKeys: ['management.console'] },
+    { key: '用户名', label: '用户名', defaultVisible: false, defaultExportable: true, sourceFieldKeys: ['management.username'] },
+    { key: '交换机', label: '交换机', defaultVisible: false, defaultExportable: true, sourceFieldKeys: ['topology.exchanges'] },
+    { key: '队列', label: '队列', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['topology.queues'] },
+  ],
+  vm: [
+    { key: '资产编号', label: '资产编号', defaultVisible: false, defaultExportable: true, sourceFieldKeys: ['asset.assetId'] },
+    { key: '位置', label: '位置', defaultVisible: false, defaultExportable: true, sourceFieldKeys: ['asset.location'] },
+    { key: '机柜', label: '机柜', defaultVisible: false, defaultExportable: true, sourceFieldKeys: ['asset.rackUnit'] },
+    { key: '主机名', label: '主机名', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['network.hostname'] },
+    { key: 'IP', label: 'IP', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['network.ip'] },
+    { key: '子网', label: '子网', defaultVisible: false, defaultExportable: true, sourceFieldKeys: ['network.subnet'] },
+    { key: '网关', label: '网关', defaultVisible: false, defaultExportable: true, sourceFieldKeys: ['network.gateway'] },
+    { key: 'VLAN', label: 'VLAN', defaultVisible: false, defaultExportable: true, sourceFieldKeys: ['network.vlan'] },
+    { key: 'CPU', label: 'CPU', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['spec.cpu'] },
+    { key: '内存', label: '内存', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['spec.memory'] },
+    { key: '系统盘', label: '系统盘', defaultVisible: false, defaultExportable: true, sourceFieldKeys: ['spec.systemDisk'] },
+    { key: '数据盘', label: '数据盘', defaultVisible: false, defaultExportable: true, sourceFieldKeys: ['spec.dataDisk'] },
+    { key: '操作系统', label: '操作系统', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['spec.os'] },
+  ],
+  network: [
+    { key: 'VIP', label: 'VIP', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['connection.vip'] },
+    { key: '域名', label: '域名', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['connection.domain'] },
+    { key: '协议', label: '协议', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['connection.protocol'] },
+    { key: '端口', label: '端口', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['connection.port'] },
+    { key: '防火墙规则数', label: '防火墙规则数', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['firewall.rules'] },
+  ],
+  monitor: [
+    { key: 'Grafana地址', label: 'Grafana地址', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['grafana.url'] },
+    { key: '仪表盘', label: '仪表盘', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['grafana.dashboard'] },
+    { key: 'Prometheus地址', label: 'Prometheus地址', defaultVisible: false, defaultExportable: true, sourceFieldKeys: ['prometheus.url'] },
+    { key: '目标数', label: '目标数', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['prometheus.targets'] },
+    { key: '告警规则数', label: '告警规则数', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['alerts'] },
+  ],
+  security: [
+    { key: 'WAF状态', label: 'WAF状态', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['waf.status'] },
+    { key: '规则数', label: '规则数', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['waf.rules'] },
+    { key: '风险等级', label: '风险等级', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['scan.riskLevel'] },
+    { key: '扫描报告', label: '扫描报告', defaultVisible: false, defaultExportable: true, sourceFieldKeys: ['scan.reportUrl'] },
+    { key: '最近扫描', label: '最近扫描', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['scan.lastScan'] },
+    { key: 'SSL域名', label: 'SSL域名', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['ssl.domain'] },
+    { key: '签发机构', label: '签发机构', defaultVisible: false, defaultExportable: true, sourceFieldKeys: ['ssl.issuer'] },
+    { key: '到期时间', label: '到期时间', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['ssl.expiry'] },
+  ],
+  backup: [
+    { key: '备份策略', label: '备份策略', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['policy.schedule'] },
+    { key: '保留期', label: '保留期', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['policy.retention'] },
+    { key: '存储位置', label: '存储位置', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['policy.storage'] },
+    { key: '最近备份', label: '最近备份', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['lastBackup.time'] },
+    { key: '备份大小', label: '备份大小', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['lastBackup.size'] },
+    { key: '备份状态', label: '备份状态', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['lastBackup.status'] },
+  ],
+  logging: [
+    { key: 'Agent名称', label: 'Agent名称', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['agent.name'] },
+    { key: 'Agent版本', label: 'Agent版本', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['agent.version'] },
+    { key: 'Agent状态', label: 'Agent状态', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['agent.status'] },
+    { key: 'ES节点数', label: 'ES节点数', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['cluster.esNodes'] },
+    { key: 'Kibana地址', label: 'Kibana地址', defaultVisible: false, defaultExportable: true, sourceFieldKeys: ['cluster.kibanaUrl'] },
+    { key: '索引模式', label: '索引模式', defaultVisible: true, defaultExportable: true, sourceFieldKeys: ['cluster.indexPattern'] },
+  ],
+};
+
+export function getAssetFieldSchema(category: AssetCategory): AssetFieldDefinition[] {
+  return ASSET_FIELD_SCHEMAS[category];
+}

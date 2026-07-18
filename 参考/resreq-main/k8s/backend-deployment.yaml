@@ -1,0 +1,148 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: default
+  labels:
+    app: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend
+        image: vmconf-backend:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3000
+          name: http
+        env:
+        # 从ConfigMap读取外部数据库配置
+        - name: DB_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: vmconf-db-config
+              key: DB_HOST
+        - name: DB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: vmconf-db-config
+              key: DB_PORT
+        - name: DB_USER
+          valueFrom:
+            configMapKeyRef:
+              name: vmconf-db-config
+              key: DB_USER
+        - name: DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: vmconf-db-config
+              key: DB_NAME
+        # 从Secret读取数据库密码
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: vmconf-db-secret
+              key: DB_PASSWORD
+        # 其他配置从ConfigMap读取
+        - name: JWT_SECRET
+          valueFrom:
+            configMapKeyRef:
+              name: vmconf-db-config
+              key: JWT_SECRET
+        - name: JWT_EXPIRE
+          valueFrom:
+            configMapKeyRef:
+              name: vmconf-db-config
+              key: JWT_EXPIRE
+        - name: PORT
+          valueFrom:
+            configMapKeyRef:
+              name: vmconf-db-config
+              key: PORT
+        - name: NODE_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: vmconf-db-config
+              key: NODE_ENV
+        - name: UPLOAD_DIR
+          valueFrom:
+            configMapKeyRef:
+              name: vmconf-db-config
+              key: UPLOAD_DIR
+        - name: MAX_FILE_SIZE
+          valueFrom:
+            configMapKeyRef:
+              name: vmconf-db-config
+              key: MAX_FILE_SIZE
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: vmconf-db-config
+              key: LOG_LEVEL
+        # 连接池配置
+        - name: CONNECTION_LIMIT
+          valueFrom:
+            configMapKeyRef:
+              name: vmconf-db-config
+              key: CONNECTION_LIMIT
+        - name: QUEUE_LIMIT
+          valueFrom:
+            configMapKeyRef:
+              name: vmconf-db-config
+              key: QUEUE_LIMIT
+        # 健康检查
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        # 资源限制
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        # 卷挂载（用于文件上传）
+        volumeMounts:
+        - name: uploads
+          mountPath: /app/uploads
+      volumes:
+      - name: uploads
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+  namespace: default
+  labels:
+    app: backend
+spec:
+  selector:
+    app: backend
+  ports:
+  - port: 3000
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  type: ClusterIP

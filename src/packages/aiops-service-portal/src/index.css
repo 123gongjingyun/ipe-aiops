@@ -1,0 +1,42 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 4 92% 48%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 4 86% 98%;
+    --accent-foreground: 4 92% 48%;
+    --destructive: 276 72% 56%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 4 92% 48%;
+    --radius: 0.5rem;
+    --success: 160 84% 39%;
+    --success-foreground: 0 0% 100%;
+    --success-light: 160 84% 96%;
+    --warning: 24 94% 53%;
+    --warning-foreground: 0 0% 100%;
+    --warning-light: 24 94% 96%;
+    --error: 276 72% 56%;
+    --error-foreground: 0 0% 100%;
+    --error-light: 276 100% 97%;
+    --info: 239 84% 67%;
+    --info-foreground: 0 0% 100%;
+    --info-light: 239 84% 96%;
+  }
+}

@@ -1,0 +1,4904 @@
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  ChevronDown,
+  ChevronUp,
+  CircleHelp,
+  FileText,
+  LayoutTemplate,
+  ListChecks,
+  Save,
+  Sparkles,
+  WandSparkles,
+} from 'lucide-react';
+import { Button, Input, Textarea, getRequestRecord, saveRequestRecord, type RequestRecordDraftPayload } from '@aiops/shared';
+
+type WorkbenchMode = 'assistant' | 'direct';
+
+type VmComponentConfig = {
+  deploymentMode: string;
+  specProfile: string;
+  configLabel: string;
+  cpu: string;
+  memory: string;
+  nodeCount: string;
+  diskType: string;
+  systemDisk: string;
+  dataDisk: string;
+  configReference: string;
+};
+
+type VmComponentConfigState = Record<string, VmComponentConfig>;
+
+type DraftState = {
+  systemCode: string;
+  moduleName: string;
+  owner: string;
+  systemName: string;
+  applicationName: string;
+  environment: string;
+  userType: string;
+  appType: string;
+  clientType: string;
+  businessGoal: string;
+  integrationSystems: string;
+  accessScope: string;
+  resourceNeed: string;
+  slaRequirement: string;
+  architectureNote: string;
+  // 虚拟机申请用户需求区（按 Excel 8 大类压缩为 5 个存储字段）
+  userRequirementBackground: string;
+  userRequirementUsers: string;
+  userRequirementOps: string;
+  userRequirementCloud: string;
+  userRequirementNetwork: string;
+  vmResourceMode: string;
+  vmDeploymentMode: string;
+  vmComponentSelection: string;
+  vmSpecProfile: string;
+  vmQuantity: string;
+  vmDiskType: string;
+  vmSystemDisk: string;
+  vmDataDisk: string;
+  vmConfigReference: string;
+  vmComponentConfigs: string;
+};
+
+type FreeInputState = {
+  sceneDescription: string;
+};
+
+type DraftField = keyof DraftState;
+
+type GuideCard = {
+  id: string;
+  title: string;
+  description: string;
+  field: DraftField;
+  type: 'single' | 'textarea';
+  options?: string[];
+  placeholder?: string;
+  helper?: string;
+  keywordHint?: string;
+};
+
+type VmRequirementProject = {
+  id: string;
+  title: string;
+  description: string;
+  placeholder: string;
+  quickOptions: string[];
+  hint: string;
+};
+
+type VmRequirementCategory = {
+  id: string;
+  field: DraftField;
+  title: string;
+  description?: string;
+  projects: VmRequirementProject[];
+};
+
+const vmRequirementCategories: VmRequirementCategory[] = [
+  {
+    id: 'background',
+    field: 'userRequirementBackground',
+    title: '1. 背景',
+    description: '确认本次申请的业务背景与目标。',
+    projects: [
+      {
+        id: 'purpose',
+        title: '1.1 申请目的 / 背景',
+        description: '本次申请的主要业务背景、项目目标或阶段。',
+        placeholder: '为经销商门户 UAT 环境申请资源，验证登录和订单查询链路。',
+        quickOptions: ['新增功能上线', 'UAT 联调', 'SIT 测试', '生产扩容', '压测验证', 'POC 试点'],
+        hint: '评审时判断业务优先级、上线计划和资源紧急程度。',
+      },
+    ],
+  },
+  {
+    id: 'users',
+    field: 'userRequirementUsers',
+    title: '2. 用户相关',
+    description: '使用本系统的用户特征与访问方式。',
+    projects: [
+      {
+        id: 'userGroup',
+        title: '2.1 使用用户群体',
+        description: '最终使用本系统的用户类型。',
+        placeholder: '内部员工 + 经销商',
+        quickOptions: ['内部员工', '经销商', '合作伙伴', '外部客户', '供应商'],
+        hint: '决定公网访问、安全边界、认证方式和网络策略。',
+      },
+      {
+        id: 'userScale',
+        title: '2.2 用户规模 / 并发量',
+        description: '预估用户数量、同时在线数或并发请求数。',
+        placeholder: '日均 1000 人访问，峰值并发 200。',
+        quickOptions: ['日均 1000 人', '峰值并发 200', '日活 1 万', '峰值并发 1000'],
+        hint: '直接影响规格档位、集群方案和扩展性设计。',
+      },
+      {
+        id: 'userRegion',
+        title: '2.3 用户使用地域',
+        description: '用户主要访问地域。',
+        placeholder: '中国大陆（华南区为主）',
+        quickOptions: ['中国大陆', '海外', '华南区', '华北区', '工厂园区'],
+        hint: '用于判断网络区域、时延要求和跨境合规。',
+      },
+      {
+        id: 'userTime',
+        title: '2.4 用户使用时间分布',
+        description: '业务高峰时段。',
+        placeholder: '工作日 9:00-18:00，月末访问量翻倍。',
+        quickOptions: ['工作日 9-18 点', '月末集中', '季度末集中', '7×24 均匀'],
+        hint: '帮助设计弹性扩缩容、维护窗口和压测计划。',
+      },
+      {
+        id: 'userAccess',
+        title: '2.5 用户访问方式',
+        description: '用户通过何种终端访问。',
+        placeholder: 'PC Web + H5 混合',
+        quickOptions: ['PC Web', 'H5', 'App', '小程序', 'API', '多终端混合'],
+        hint: '影响域名发布、认证链路和移动端适配要求。',
+      },
+      {
+        id: 'userRole',
+        title: '2.6 用户权限 / 角色要求',
+        description: '是否需要分角色、分权限。',
+        placeholder: '管理员、普通用户、只读用户。',
+        quickOptions: ['管理员', '普通用户', '只读用户', '审批角色', '业务角色'],
+        hint: '评审数据权限隔离和后台管理需求。',
+      },
+      {
+        id: 'userAuth',
+        title: '2.7 用户认证方式',
+        description: '登录认证方式。',
+        placeholder: '统一认证（SSO）',
+        quickOptions: ['统一认证（SSO）', 'AD 域账号', '短信验证码', 'OAuth2', 'LDAP'],
+        hint: '决定是否需要对接统一认证、AD 域或 OAuth 服务。',
+      },
+    ],
+  },
+  {
+    id: 'ops',
+    field: 'userRequirementOps',
+    title: '3. 运维相关',
+    description: '服务时间、备份、监控与运维分工。',
+    projects: [
+      {
+        id: 'serviceTime',
+        title: '3.1 服务时间 / 可用性要求',
+        description: '系统需要的服务时间。',
+        placeholder: '7×24',
+        quickOptions: ['7×24', '5×8', '工作日 8-20 点'],
+        hint: '决定是否需要高可用、双活或容灾方案。',
+      },
+      {
+        id: 'maintenanceWindow',
+        title: '3.2 维护窗口',
+        description: '可接受的停机维护时段。',
+        placeholder: '每周日凌晨 2:00-6:00',
+        quickOptions: ['每周日凌晨 2-6 点', '工作日 22-6 点', '无固定窗口'],
+        hint: '用于安排补丁更新、发布窗口和计划内停机。',
+      },
+      {
+        id: 'backup',
+        title: '3.3 备份 / 恢复要求',
+        description: '数据备份策略与恢复要求。',
+        placeholder: '每日全量备份，保留 7 天。',
+        quickOptions: ['每日全量', '每日增量', '每周全量', '保留 7 天', '保留 30 天'],
+        hint: '评审 RTO/RPO 和数据恢复能力。',
+      },
+      {
+        id: 'monitor',
+        title: '3.4 监控 / 告警要求',
+        description: '是否需要接入监控告警。',
+        placeholder: '接入统一监控平台，CPU>80% 告警。',
+        quickOptions: ['接入统一监控平台', 'CPU>80% 告警', '内存>80% 告警', '磁盘>80% 告警', '接口失败率告警'],
+        hint: '影响监控接入、告警策略和运维交接。',
+      },
+      {
+        id: 'opsOwner',
+        title: '3.5 运维责任分工',
+        description: '应用运维与基础设施运维分工。',
+        placeholder: '应用层由业务方负责，OS 层由云运维负责。',
+        quickOptions: ['业务方负责应用', '云运维负责 OS', '共同负责', '待定'],
+        hint: '明确后续故障处理、权限申请和变更责任方。',
+      },
+    ],
+  },
+  {
+    id: 'cloud',
+    field: 'userRequirementCloud',
+    title: '4. 云服务提供',
+    description: '所需云服务类型与使用周期。',
+    projects: [
+      {
+        id: 'cloudService',
+        title: '4.1 所需云服务类型',
+        description: '需要的云服务类别。',
+        placeholder: '云主机、MySQL、Redis、负载均衡。',
+        quickOptions: ['云主机', '对象存储', 'MySQL', 'Redis', 'RabbitMQ', 'Kafka', '负载均衡'],
+        hint: '直接决定需要开通哪些云产品和组件能力。',
+      },
+      {
+        id: 'cloudCycle',
+        title: '4.2 资源使用周期',
+        description: '资源的预计使用时长。',
+        placeholder: '6 个月（项目周期）',
+        quickOptions: ['长期', '3 个月', '6 个月', '12 个月', '项目周期'],
+        hint: '影响资源计费方式、到期提醒和回收策略。',
+      },
+    ],
+  },
+  {
+    id: 'middleware',
+    field: 'userRequirementCloud',
+    title: '5. 中间件 & 数据库要件',
+    description: '数据库、中间件类型与性能容量预估。',
+    projects: [
+      {
+        id: 'middlewareType',
+        title: '5.1 数据库 / 中间件类型',
+        description: '需要的具体产品。',
+        placeholder: 'MySQL 8.0、Redis 6.x。',
+        quickOptions: ['MySQL 8.0', 'Redis 6.x', 'RabbitMQ', 'Kafka', 'PostgreSQL', 'MongoDB'],
+        hint: '决定组件能力选择和版本兼容性要求。',
+      },
+      {
+        id: 'middlewareCapacity',
+        title: '5.2 性能 / 容量预估',
+        description: 'TPS/QPS、数据量、连接数等。',
+        placeholder: '日均 QPS 5000，峰值 QPS 20000，数据量 500GB。',
+        quickOptions: ['日均 QPS 5000', '峰值 QPS 20000', '数据量 500GB', '连接数 1000'],
+        hint: '用于核对规格档位、节点数和高可用方案。',
+      },
+    ],
+  },
+  {
+    id: 'server',
+    field: 'userRequirementCloud',
+    title: '6. 服务器基础侧要件',
+    description: '操作系统、计算规格与部署方式。',
+    projects: [
+      {
+        id: 'os',
+        title: '6.1 操作系统要求',
+        description: 'OS 类型和版本。',
+        placeholder: 'CentOS 7.9',
+        quickOptions: ['CentOS 7.9', 'Rocky Linux 8', 'Windows Server 2019', 'Ubuntu 20.04'],
+        hint: '影响镜像选择、补丁策略和许可合规。',
+      },
+      {
+        id: 'spec',
+        title: '6.2 计算规格要求',
+        description: 'CPU、内存、磁盘初步要求。',
+        placeholder: '4C8G',
+        quickOptions: ['2C4G', '4C8G', '8C16G', '16C32G'],
+        hint: '初步规格，最终以评审和压测结果为准。',
+      },
+      {
+        id: 'deploy',
+        title: '6.3 部署方式',
+        description: '单机、集群、容器化等。',
+        placeholder: '双机集群',
+        quickOptions: ['单机部署', '双机集群', '3 节点集群', 'Kubernetes 容器', '主从架构'],
+        hint: '决定高可用、故障转移和扩展方式。',
+      },
+    ],
+  },
+  {
+    id: 'security',
+    field: 'userRequirementOps',
+    title: '7. 安全要件',
+    description: '数据安全、访问控制、审计与合规。',
+    projects: [
+      {
+        id: 'dataSecurity',
+        title: '7.1 数据安全 / 加密要求',
+        description: '数据传输和存储加密。',
+        placeholder: 'HTTPS 传输，数据库敏感字段加密。',
+        quickOptions: ['HTTPS 传输', '数据库敏感字段加密', 'TLS', 'AES 加密'],
+        hint: '评审数据加密、脱敏和传输安全要求。',
+      },
+      {
+        id: 'accessControl',
+        title: '7.2 访问控制要求',
+        description: '网络隔离、白名单、防火墙。',
+        placeholder: '仅内网访问，指定 IP 白名单。',
+        quickOptions: ['仅内网访问', '指定 IP 白名单', '堡垒机访问', 'VPN 访问'],
+        hint: '影响网络区域划分、安全组和防火墙策略。',
+      },
+      {
+        id: 'audit',
+        title: '7.3 审计 / 日志要求',
+        description: '操作审计和日志保留。',
+        placeholder: '操作日志保留 180 天。',
+        quickOptions: ['操作日志保留 180 天', '访问日志保留 90 天', '审计日志保留 1 年'],
+        hint: '决定日志采集、保留周期和审计合规。',
+      },
+      {
+        id: 'compliance',
+        title: '7.4 合规要求',
+        description: '等保、GDPR、行业合规。',
+        placeholder: '等保三级',
+        quickOptions: ['等保二级', '等保三级', 'GDPR', '行业合规'],
+        hint: '影响安全架构、测评要求和材料准备。',
+      },
+      {
+        id: 'patch',
+        title: '7.5 漏洞 / 补丁管理',
+        description: '安全补丁和漏洞修复要求。',
+        placeholder: '高危漏洞 7 个工作日内修复。',
+        quickOptions: ['高危漏洞 7 个工作日', '高危漏洞 15 个工作日', '月度补丁更新'],
+        hint: '明确漏洞修复 SLA 和运维流程。',
+      },
+    ],
+  },
+  {
+    id: 'network',
+    field: 'userRequirementNetwork',
+    title: '8. 网络需求',
+    description: '网络区域、访问边界、域名与带宽。',
+    projects: [
+      {
+        id: 'networkZone',
+        title: '8.1 网络区域',
+        description: '业务网、管理网、DMZ 等。',
+        placeholder: '业务网 B 区',
+        quickOptions: ['业务网 A 区', '业务网 B 区', '管理网', 'DMZ'],
+        hint: '决定虚拟机部署的网络分区。',
+      },
+      {
+        id: 'publicAccess',
+        title: '8.2 公网访问需求',
+        description: '是否需要公网访问。',
+        placeholder: '需要公网域名发布',
+        quickOptions: ['不需要公网', '需要公网域名发布', '需要公网 IP', '仅内网'],
+        hint: '影响域名、WAF、安全组和发布流程。',
+      },
+      {
+        id: 'domain',
+        title: '8.3 域名 / DNS 需求',
+        description: '是否需要域名和解析。',
+        placeholder: '需要 xxx.company.com',
+        quickOptions: ['需要新域名', '使用现有域名', '不需要域名', '需要 DNS 解析'],
+        hint: '明确域名申请、解析变更和证书需求。',
+      },
+      {
+        id: 'loadBalancer',
+        title: '8.4 负载均衡需求',
+        description: '是否需要 LB。',
+        placeholder: '需要 4 层负载均衡',
+        quickOptions: ['4 层负载均衡', '7 层负载均衡', '不需要 LB'],
+        hint: '决定高可用入口和流量分发方案。',
+      },
+      {
+        id: 'ports',
+        title: '8.5 端口 / 协议需求',
+        description: '需要开放的端口和协议。',
+        placeholder: 'TCP 80/443/3306',
+        quickOptions: ['TCP 80/443', 'TCP 3306', 'TCP 22', 'UDP 53'],
+        hint: '用于开通常访策略和安全组规则。',
+      },
+      {
+        id: 'whitelist',
+        title: '8.6 系统互访 / 白名单',
+        description: '与其他系统的互访关系。',
+        placeholder: '需访问订单中心 10.x.x.x:8080',
+        quickOptions: ['需访问订单中心', '需访问统一认证', '需访问短信网关', '需访问报表平台'],
+        hint: '明确上下游调用关系和网络策略。',
+      },
+      {
+        id: 'vpn',
+        title: '8.7 专线 / VPN 需求',
+        description: '是否需要专线或 VPN。',
+        placeholder: '工厂通过专线访问',
+        quickOptions: ['不需要', '工厂专线接入', 'SSL VPN', 'IPSec VPN'],
+        hint: '影响跨地域、工厂或合作伙伴接入方案。',
+      },
+      {
+        id: 'bandwidth',
+        title: '8.8 带宽 / 时延要求',
+        description: '网络带宽和时延。',
+        placeholder: '带宽 100Mbps，时延 < 50ms',
+        quickOptions: ['10Mbps', '50Mbps', '100Mbps', '时延 < 50ms', '时延 < 100ms'],
+        hint: '用于评估网络规划和链路质量。',
+      },
+      {
+        id: 'haNetwork',
+        title: '8.9 高可用网络',
+        description: '是否需要双网卡、双链路。',
+        placeholder: '需要双网卡绑定',
+        quickOptions: ['双网卡绑定', '双链路冗余', '单网卡', '不需要'],
+        hint: '影响网络冗余和故障切换能力。',
+      },
+      {
+        id: 'cdn',
+        title: '8.10 CDN / 加速需求',
+        description: '是否需要 CDN。',
+        placeholder: '静态资源使用 CDN',
+        quickOptions: ['静态资源 CDN', '全站加速', '不需要'],
+        hint: '明确静态资源加速和边缘分发需求。',
+      },
+      {
+        id: 'securityDevice',
+        title: '8.11 网络安全设备',
+        description: 'WAF、IPS 等。',
+        placeholder: '公网入口需 WAF 防护',
+        quickOptions: ['WAF', 'IPS', 'IDS', '防火墙', '不需要'],
+        hint: '决定公网入口安全防护设备。',
+      },
+    ],
+  },
+];
+
+function parseRequirementAnswersFromDraft(draft: Partial<DraftState>): Record<string, string> {
+  const answers: Record<string, string> = {};
+  vmRequirementCategories.forEach(category => {
+    const raw = draft[category.field] || '';
+    if (!raw.trim()) return;
+    const blocks = raw.split(/(?=【)/).filter(Boolean);
+    category.projects.forEach((project, index) => {
+      const block = blocks[index];
+      if (!block) return;
+      const content = block.replace(`【${project.title}】`, '').trim();
+      if (content) {
+        answers[`${category.id}/${project.id}`] = content;
+      }
+    });
+  });
+  return answers;
+}
+
+function applyVmSceneInference(input: string, currentEnvironment: string) {
+  const normalized = input.trim();
+  const draftPatch: Partial<DraftState> = {};
+  const answersPatch: Record<string, string> = {};
+  if (!normalized) return { draftPatch, answersPatch };
+
+  // 环境
+  if (/生产|prod/i.test(normalized)) draftPatch.environment = 'PROD';
+  else if (/压测|压力|性能测试/i.test(normalized)) draftPatch.environment = '压测';
+  else if (/uat|验收/i.test(normalized)) draftPatch.environment = 'UAT';
+  else if (/sit|测试/i.test(normalized)) draftPatch.environment = 'SIT';
+
+  // 系统名称
+  const systemMatch = normalized.match(/(?:为|给)\s*([^\s，。,；;]+?(?:系统|平台|门户|中心))/i) ||
+    normalized.match(/([^\s，。,；;]+?(?:系统|平台|门户|中心))/i);
+  if (systemMatch?.[1]) draftPatch.systemName = systemMatch[1].trim();
+
+  // 模块名称
+  const moduleMatch = normalized.match(/(?:模块|应用)\s*[为是:]?\s*([^\s，。,；;]+)/i);
+  if (moduleMatch?.[1]) draftPatch.moduleName = moduleMatch[1].trim();
+
+  // 担当
+  const ownerMatch = normalized.match(/(?:担当|负责人|联系人)\s*[为是:]?\s*([^\s，。,；;]+)/i);
+  if (ownerMatch?.[1]) draftPatch.owner = ownerMatch[1].trim();
+
+  // 申请模式
+  if (/裸机|仅虚拟机|只要主机|只申请主机/i.test(normalized)) {
+    draftPatch.vmResourceMode = '仅申请虚拟机裸机资源';
+  } else if (/一体机|综合一体/i.test(normalized)) {
+    draftPatch.vmResourceMode = '综合一体机部署';
+  } else if (/组件|MySQL|Redis|RabbitMQ|Kafka|数据库|中间件|缓存/i.test(normalized)) {
+    draftPatch.vmResourceMode = '虚拟机 + 组件组合分开部署';
+  }
+  // 如果当前环境不支持推断出的模式，回退到默认
+  const modeOptions = vmResourceModeOptionsByEnvironment[draftPatch.environment || currentEnvironment] || vmResourceModeOptionsByEnvironment.UAT;
+  if (draftPatch.vmResourceMode && !modeOptions.includes(draftPatch.vmResourceMode)) {
+    draftPatch.vmResourceMode = modeOptions[0] || '';
+  }
+
+  // 规格档位 + 磁盘联动
+  const specMatch = normalized.match(/(\d+C\s*\d+G)/i);
+  if (specMatch) {
+    const specKey = specMatch[1].replace(/\s+/g, '').toUpperCase();
+    draftPatch.vmSpecProfile = specKey;
+    const envProfiles = vmSpecProfiles[draftPatch.environment as keyof typeof vmSpecProfiles] || vmSpecProfiles.UAT;
+    const matchedProfile = envProfiles.find(p => p.key === specKey);
+    if (matchedProfile) {
+      draftPatch.vmDiskType = matchedProfile.diskType;
+      draftPatch.vmSystemDisk = matchedProfile.systemDisk;
+      draftPatch.vmDataDisk = matchedProfile.dataDisk;
+    }
+  }
+
+  // 数量
+  const quantityMatch = normalized.match(/(\d+)\s*(台|节点|台主机|主机)/i);
+  if (quantityMatch) draftPatch.vmQuantity = `${quantityMatch[1]} 台`;
+
+  // 背景
+  answersPatch['background/purpose'] = normalized;
+
+  // 用户群体
+  const users: string[] = [];
+  if (/内部员工|内部|办公/i.test(normalized)) users.push('内部员工');
+  if (/经销商/i.test(normalized)) users.push('经销商');
+  if (/合作伙伴/i.test(normalized)) users.push('合作伙伴');
+  if (/外部客户|客户/i.test(normalized)) users.push('外部客户');
+  if (users.length) answersPatch['users/userGroup'] = users.join('、');
+
+  // 访问方式
+  const access: string[] = [];
+  if (/PC|Web|浏览器/i.test(normalized)) access.push('PC Web');
+  if (/H5|移动端|App|小程序/i.test(normalized)) access.push('H5 / 移动端');
+  if (/API|接口/i.test(normalized)) access.push('API 调用');
+  if (access.length) answersPatch['users/userAccess'] = access.join('、');
+
+  // 云服务
+  const cloud: string[] = [];
+  if (/云主机|虚拟机|主机|服务器/i.test(normalized)) cloud.push('云主机');
+  if (/MySQL|数据库/i.test(normalized)) cloud.push('MySQL');
+  if (/Redis|缓存/i.test(normalized)) cloud.push('Redis');
+  if (/RabbitMQ|MQ|消息/i.test(normalized)) cloud.push('RabbitMQ');
+  if (/Kafka/i.test(normalized)) cloud.push('Kafka');
+  if (/负载均衡|LB/i.test(normalized)) cloud.push('负载均衡');
+  if (/对象存储|OSS/i.test(normalized)) cloud.push('对象存储');
+  if (cloud.length) answersPatch['cloud/cloudService'] = cloud.join('、');
+
+  // 组件能力
+  const components = cloud.filter(c => ['MySQL', 'Redis', 'RabbitMQ', 'Kafka'].includes(c));
+  if (components.length && draftPatch.vmResourceMode && draftPatch.vmResourceMode !== '仅申请虚拟机裸机资源') {
+    draftPatch.vmComponentSelection = components.join('、');
+  }
+
+  // 网络
+  const network: string[] = [];
+  if (/公网|域名|互联网/i.test(normalized)) network.push('需要公网域名发布');
+  if (/内网|办公网/i.test(normalized)) network.push('仅内网访问');
+  if (/互访|上下游|白名单/i.test(normalized)) network.push('系统互访 / 白名单');
+  if (network.length) answersPatch['network/publicAccess'] = network.join('、');
+
+  return { draftPatch, answersPatch };
+}
+
+type VmSpecProfileDetails = {
+  resourceCpuDetail: string;
+  resourceMemoryDetail: string;
+  resourceSystemDisk: string;
+  resourceDataDisk: string;
+  diskTypeDescription: string;
+  scenarioUsage: string;
+  scenarioUserScale: string;
+  architectureType?: string;
+  diskIops?: string;
+  diskThroughput?: string;
+  recommendationLevel?: string;
+  priceLevel?: string;
+  technicalNotes?: string;
+  // MySQL
+  masterCpuDetail?: string;
+  masterMemoryDetail?: string;
+  masterSystemDisk?: string;
+  masterDataDisk?: string;
+  masterConnections?: string;
+  masterDailyQps?: string;
+  masterPeakQps?: string;
+  // RabbitMQ
+  concurrentConnections?: string;
+  messageThroughput?: string;
+  queueCount?: string;
+  haFeatures?: string;
+  // Redis
+  maxConnections?: string;
+  opsPerSecond?: string;
+  memoryUsage?: string;
+  hitRate?: string;
+  dataSize?: string;
+  persistenceMode?: string;
+  // Kafka
+  throughput?: string;
+  partitionCount?: string;
+  replicationFactor?: string;
+  brokerCount?: string;
+  retentionPeriod?: string;
+};
+
+type VmSpecProfile = {
+  key: string;
+  cpu: string;
+  memory: string;
+  diskType: string;
+  systemDisk: string;
+  dataDisk: string;
+  details: VmSpecProfileDetails;
+};
+
+type VmComponentProfile = VmSpecProfile & {
+  configLabel: string;
+  nodeCount: string;
+};
+
+type VmComponentDeployment = {
+  deploymentMode: string;
+  profiles: VmComponentProfile[];
+};
+
+const defaultDraft: DraftState = {
+  systemCode: '',
+  moduleName: '',
+  owner: '',
+  systemName: '',
+  applicationName: '',
+  environment: 'SIT',
+  userType: '',
+  appType: '',
+  clientType: '',
+  businessGoal: '',
+  integrationSystems: '',
+  accessScope: '',
+  resourceNeed: '',
+  slaRequirement: '',
+  architectureNote: '',
+  userRequirementBackground: '',
+  userRequirementUsers: '',
+  userRequirementOps: '',
+  userRequirementCloud: '',
+  userRequirementNetwork: '',
+  vmResourceMode: '',
+  vmDeploymentMode: '',
+  vmComponentSelection: '',
+  vmSpecProfile: '',
+  vmQuantity: '',
+  vmDiskType: '',
+  vmSystemDisk: '',
+  vmDataDisk: '',
+  vmConfigReference: '',
+  vmComponentConfigs: '',
+};
+
+const vmEnvironmentOptions = ['SIT', 'UAT', '压测', 'PROD'] as const;
+
+const vmResourceModeOptionsByEnvironment: Record<string, string[]> = {
+  SIT: ['仅申请虚拟机裸机资源'],
+  UAT: ['虚拟机 + 组件组合分开部署', '综合一体机部署'],
+  压测: ['虚拟机 + 组件组合分开部署', '综合一体机部署'],
+  PROD: ['虚拟机 + 组件组合分开部署', '综合一体机部署'],
+  DEV: ['仅申请虚拟机裸机资源'],
+};
+
+const vmDeploymentModeOptions = ['单机部署', '集群部署'] as const;
+
+const userTypeOptions = ['内部办公系统', '对外业务系统', '经销商/合作伙伴系统', '其他'] as const;
+const appTypeOptions = ['门户 / Web 应用', 'API 服务', '数据服务 / 报表', '其他'] as const;
+const clientTypeOptions = ['PC Web', 'H5 / 移动端', 'API 调用', '多终端混合', '其他'] as const;
+
+const vmComponentOptions = ['MySQL', 'RabbitMQ', 'Redis', 'Kafka'] as const;
+
+const vmSpecProfiles = {
+  SIT: [
+    {
+      key: '2C4G',
+      cpu: '2C',
+      memory: '4GB',
+      diskType: '高IO',
+      systemDisk: '80GB',
+      dataDisk: '100GB',
+      details: {
+        resourceCpuDetail: '2C',
+        resourceMemoryDetail: '4GB',
+        resourceSystemDisk: '80GB',
+        resourceDataDisk: '100GB',
+        diskTypeDescription: '适合基础联调与测试验证，默认高IO磁盘。',
+        scenarioUsage: '基础联调、功能验证',
+        scenarioUserScale: '轻量内部测试',
+        architectureType: 'x86 单机/集群',
+        diskIops: '3000',
+        diskThroughput: '100MB/s',
+        recommendationLevel: '标准',
+        priceLevel: '中',
+        technicalNotes: '默认高IO磁盘，具体以评审为准。'
+      },
+    },
+    {
+      key: '4C8G',
+      cpu: '4C',
+      memory: '8GB',
+      diskType: '高IO',
+      systemDisk: '80GB',
+      dataDisk: '200GB',
+      details: {
+        resourceCpuDetail: '4C',
+        resourceMemoryDetail: '8GB',
+        resourceSystemDisk: '80GB',
+        resourceDataDisk: '200GB',
+        diskTypeDescription: '适合并发稍高的 SIT 验证。',
+        scenarioUsage: '接口联调、模块联测',
+        scenarioUserScale: '中等规模测试',
+        architectureType: 'x86 单机/集群',
+        diskIops: '3000',
+        diskThroughput: '100MB/s',
+        recommendationLevel: '标准',
+        priceLevel: '中',
+        technicalNotes: '默认高IO磁盘，具体以评审为准。'
+      },
+    },
+  ],
+  UAT: [
+    {
+      key: '2C4G',
+      cpu: '2C',
+      memory: '4GB',
+      diskType: '高IO',
+      systemDisk: '80GB',
+      dataDisk: '100GB',
+      details: {
+        resourceCpuDetail: '2C',
+        resourceMemoryDetail: '4GB',
+        resourceSystemDisk: '80GB',
+        resourceDataDisk: '100GB',
+        diskTypeDescription: '适合单机轻量验收链路。',
+        scenarioUsage: '轻量 UAT 验收',
+        scenarioUserScale: '单系统验收',
+        architectureType: 'x86 单机/集群',
+        diskIops: '3000',
+        diskThroughput: '100MB/s',
+        recommendationLevel: '标准',
+        priceLevel: '中',
+        technicalNotes: '默认高IO磁盘，具体以评审为准。'
+      },
+    },
+    {
+      key: '4C8G',
+      cpu: '4C',
+      memory: '8GB',
+      diskType: '高IO',
+      systemDisk: '80GB',
+      dataDisk: '200GB',
+      details: {
+        resourceCpuDetail: '4C',
+        resourceMemoryDetail: '8GB',
+        resourceSystemDisk: '80GB',
+        resourceDataDisk: '200GB',
+        diskTypeDescription: '适合常规门户、接口联调和数据库配套部署。',
+        scenarioUsage: '常规 UAT 联调',
+        scenarioUserScale: '中等业务规模',
+        architectureType: 'x86 单机/集群',
+        diskIops: '3000',
+        diskThroughput: '100MB/s',
+        recommendationLevel: '标准',
+        priceLevel: '中',
+        technicalNotes: '默认高IO磁盘，具体以评审为准。'
+      },
+    },
+    {
+      key: '8C16G',
+      cpu: '8C',
+      memory: '16GB',
+      diskType: '超高IO',
+      systemDisk: '100GB',
+      dataDisk: '300GB',
+      details: {
+        resourceCpuDetail: '8C',
+        resourceMemoryDetail: '16GB',
+        resourceSystemDisk: '100GB',
+        resourceDataDisk: '300GB',
+        diskTypeDescription: '适合较完整联调和压测前置验证。',
+        scenarioUsage: '复杂 UAT、准压测验证',
+        scenarioUserScale: '较大业务规模',
+        architectureType: 'x86 单机/集群',
+        diskIops: '3000',
+        diskThroughput: '100MB/s',
+        recommendationLevel: '标准',
+        priceLevel: '中',
+        technicalNotes: '默认高IO磁盘，具体以评审为准。'
+      },
+    },
+  ],
+  压测: [
+    {
+      key: '4C8G',
+      cpu: '4C',
+      memory: '8GB',
+      diskType: '超高IO',
+      systemDisk: '100GB',
+      dataDisk: '300GB',
+      details: {
+        resourceCpuDetail: '4C',
+        resourceMemoryDetail: '8GB',
+        resourceSystemDisk: '100GB',
+        resourceDataDisk: '300GB',
+        diskTypeDescription: '适合压测前置验证和中等并发压测。',
+        scenarioUsage: '压测验证',
+        scenarioUserScale: '中等并发规模',
+        architectureType: 'x86 单机/集群',
+        diskIops: '3000',
+        diskThroughput: '100MB/s',
+        recommendationLevel: '标准',
+        priceLevel: '中',
+        technicalNotes: '默认高IO磁盘，具体以评审为准。'
+      },
+    },
+    {
+      key: '8C16G',
+      cpu: '8C',
+      memory: '16GB',
+      diskType: '超高IO',
+      systemDisk: '100GB',
+      dataDisk: '500GB',
+      details: {
+        resourceCpuDetail: '8C',
+        resourceMemoryDetail: '16GB',
+        resourceSystemDisk: '100GB',
+        resourceDataDisk: '500GB',
+        diskTypeDescription: '适合更高压力或多组件压测组合。',
+        scenarioUsage: '高压压测',
+        scenarioUserScale: '高并发压测规模',
+        architectureType: 'x86 单机/集群',
+        diskIops: '3000',
+        diskThroughput: '100MB/s',
+        recommendationLevel: '标准',
+        priceLevel: '中',
+        technicalNotes: '默认高IO磁盘，具体以评审为准。'
+      },
+    },
+  ],
+  PROD: [
+    {
+      key: '4C8G',
+      cpu: '4C',
+      memory: '8GB',
+      diskType: '超高IO',
+      systemDisk: '100GB',
+      dataDisk: '200GB',
+      details: {
+        resourceCpuDetail: '4C',
+        resourceMemoryDetail: '8GB',
+        resourceSystemDisk: '100GB',
+        resourceDataDisk: '200GB',
+        diskTypeDescription: '适合轻量单机型生产业务。',
+        scenarioUsage: '轻量生产业务',
+        scenarioUserScale: '小规模在线业务',
+        architectureType: 'x86 单机/集群',
+        diskIops: '3000',
+        diskThroughput: '100MB/s',
+        recommendationLevel: '标准',
+        priceLevel: '中',
+        technicalNotes: '默认高IO磁盘，具体以评审为准。'
+      },
+    },
+    {
+      key: '8C16G',
+      cpu: '8C',
+      memory: '16GB',
+      diskType: '超高IO',
+      systemDisk: '100GB',
+      dataDisk: '300GB',
+      details: {
+        resourceCpuDetail: '8C',
+        resourceMemoryDetail: '16GB',
+        resourceSystemDisk: '100GB',
+        resourceDataDisk: '300GB',
+        diskTypeDescription: '适合常规业务主机和中间件承载。',
+        scenarioUsage: '常规生产业务',
+        scenarioUserScale: '中等在线业务规模',
+        architectureType: 'x86 单机/集群',
+        diskIops: '3000',
+        diskThroughput: '100MB/s',
+        recommendationLevel: '标准',
+        priceLevel: '中',
+        technicalNotes: '默认高IO磁盘，具体以评审为准。'
+      },
+    },
+    {
+      key: '16C32G',
+      cpu: '16C',
+      memory: '32GB',
+      diskType: '超高IO',
+      systemDisk: '120GB',
+      dataDisk: '500GB',
+      details: {
+        resourceCpuDetail: '16C',
+        resourceMemoryDetail: '32GB',
+        resourceSystemDisk: '120GB',
+        resourceDataDisk: '500GB',
+        diskTypeDescription: '适合高并发或多组件承载场景，建议结合高可用方案。',
+        scenarioUsage: '高并发生产业务',
+        scenarioUserScale: '大规模在线业务',
+        architectureType: 'x86 单机/集群',
+        diskIops: '3000',
+        diskThroughput: '100MB/s',
+        recommendationLevel: '标准',
+        priceLevel: '中',
+        technicalNotes: '默认高IO磁盘，具体以评审为准。'
+      },
+    },
+  ],
+  DEV: [
+    {
+      key: '2C4G',
+      cpu: '2C',
+      memory: '4GB',
+      diskType: '高IO',
+      systemDisk: '80GB',
+      dataDisk: '100GB',
+      details: {
+        resourceCpuDetail: '2C',
+        resourceMemoryDetail: '4GB',
+        resourceSystemDisk: '80GB',
+        resourceDataDisk: '100GB',
+        diskTypeDescription: '适合开发环境联调。',
+        scenarioUsage: '开发联调',
+        scenarioUserScale: '开发验证',
+        architectureType: 'x86 单机/集群',
+        diskIops: '3000',
+        diskThroughput: '100MB/s',
+        recommendationLevel: '标准',
+        priceLevel: '中',
+        technicalNotes: '默认高IO磁盘，具体以评审为准。'
+      },
+    },
+    {
+      key: '4C8G',
+      cpu: '4C',
+      memory: '8GB',
+      diskType: '高IO',
+      systemDisk: '80GB',
+      dataDisk: '200GB',
+      details: {
+        resourceCpuDetail: '4C',
+        resourceMemoryDetail: '8GB',
+        resourceSystemDisk: '80GB',
+        resourceDataDisk: '200GB',
+        diskTypeDescription: '适合需要数据库或中间件配套的开发验证。',
+        scenarioUsage: '开发 + 组件验证',
+        scenarioUserScale: '中等开发测试规模',
+        architectureType: 'x86 单机/集群',
+        diskIops: '3000',
+        diskThroughput: '100MB/s',
+        recommendationLevel: '标准',
+        priceLevel: '中',
+        technicalNotes: '默认高IO磁盘，具体以评审为准。'
+      },
+    },
+  ],
+} as const;
+
+const vmComponentProfilesByEnvironment: Record<string, Record<string, VmComponentDeployment[]>> = {
+  UAT: {
+    MySQL: [
+      {
+        deploymentMode: '单机',
+        profiles: [
+          {
+            key: '2C4G',
+            configLabel: 'MySQL 单机 2C4G',
+            cpu: '2C',
+            memory: '4GB',
+            nodeCount: '1 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '100GB',
+            details: {
+              resourceCpuDetail: '2C',
+              resourceMemoryDetail: '4GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '100GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 100GB。',
+              scenarioUsage: '配置A-小型',
+              scenarioUserScale: '参考配置：配置A-小型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              masterCpuDetail: '2C',
+              masterMemoryDetail: '4GB',
+              masterSystemDisk: '80GB',
+              masterDataDisk: '100GB',
+              masterConnections: '500',
+              masterDailyQps: '1000',
+              masterPeakQps: '3000'
+            },
+          },
+          {
+            key: '4C8G',
+            configLabel: 'MySQL 单机 4C8G',
+            cpu: '4C',
+            memory: '8GB',
+            nodeCount: '1 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '200GB',
+            details: {
+              resourceCpuDetail: '4C',
+              resourceMemoryDetail: '8GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '200GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 200GB。',
+              scenarioUsage: '配置B-中型',
+              scenarioUserScale: '参考配置：配置B-中型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              masterCpuDetail: '2C',
+              masterMemoryDetail: '4GB',
+              masterSystemDisk: '80GB',
+              masterDataDisk: '100GB',
+              masterConnections: '500',
+              masterDailyQps: '1000',
+              masterPeakQps: '3000'
+            },
+          },
+        ],
+      },
+    ],
+    RabbitMQ: [
+      {
+        deploymentMode: '单机',
+        profiles: [
+          {
+            key: '2C4G',
+            configLabel: 'RabbitMQ 单机 2C4G',
+            cpu: '2C',
+            memory: '4GB',
+            nodeCount: '1 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '100GB',
+            details: {
+              resourceCpuDetail: '2C',
+              resourceMemoryDetail: '4GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '100GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 100GB。',
+              scenarioUsage: '配置A-小型',
+              scenarioUserScale: '参考配置：配置A-小型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              concurrentConnections: '1000',
+              messageThroughput: '5000 msg/s',
+              queueCount: '50',
+              haFeatures: '镜像队列'
+            },
+          },
+          {
+            key: '4C8G',
+            configLabel: 'RabbitMQ 单机 4C8G',
+            cpu: '4C',
+            memory: '8GB',
+            nodeCount: '1 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '200GB',
+            details: {
+              resourceCpuDetail: '4C',
+              resourceMemoryDetail: '8GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '200GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 200GB。',
+              scenarioUsage: '配置B-中型',
+              scenarioUserScale: '参考配置：配置B-中型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              concurrentConnections: '1000',
+              messageThroughput: '5000 msg/s',
+              queueCount: '50',
+              haFeatures: '镜像队列'
+            },
+          },
+        ],
+      },
+    ],
+    Redis: [
+      {
+        deploymentMode: '单节点',
+        profiles: [
+          {
+            key: '2C4G',
+            configLabel: 'Redis 单节点 2C4G',
+            cpu: '2C',
+            memory: '4GB',
+            nodeCount: '1 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '100GB',
+            details: {
+              resourceCpuDetail: '2C',
+              resourceMemoryDetail: '4GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '100GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 100GB。',
+              scenarioUsage: 'Redis 小型配置',
+              scenarioUserScale: '参考配置：配置A-小型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              maxConnections: '10000',
+              opsPerSecond: '50000',
+              memoryUsage: '70%',
+              hitRate: '90%',
+              dataSize: '10GB',
+              persistenceMode: 'RDB + AOF'
+            },
+          },
+          {
+            key: '4C8G',
+            configLabel: 'Redis 单节点 4C8G',
+            cpu: '4C',
+            memory: '8GB',
+            nodeCount: '1 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '200GB',
+            details: {
+              resourceCpuDetail: '4C',
+              resourceMemoryDetail: '8GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '200GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 200GB。',
+              scenarioUsage: 'Redis 中型配置',
+              scenarioUserScale: '参考配置：配置B-中型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              maxConnections: '10000',
+              opsPerSecond: '50000',
+              memoryUsage: '70%',
+              hitRate: '90%',
+              dataSize: '10GB',
+              persistenceMode: 'RDB + AOF'
+            },
+          },
+          {
+            key: '8C16G',
+            configLabel: 'Redis 单节点 8C16G',
+            cpu: '8C',
+            memory: '16GB',
+            nodeCount: '1 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '500GB',
+            details: {
+              resourceCpuDetail: '8C',
+              resourceMemoryDetail: '16GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '500GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 500GB。',
+              scenarioUsage: 'Redis 大型配置',
+              scenarioUserScale: '参考配置：配置C-大型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              maxConnections: '10000',
+              opsPerSecond: '50000',
+              memoryUsage: '70%',
+              hitRate: '90%',
+              dataSize: '10GB',
+              persistenceMode: 'RDB + AOF'
+            },
+          },
+        ],
+      },
+      {
+        deploymentMode: '3主3从集群',
+        profiles: [
+          {
+            key: '2C4G',
+            configLabel: 'Redis 3主3从集群 2C4G',
+            cpu: '2C',
+            memory: '4GB',
+            nodeCount: '6 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '100GB',
+            details: {
+              resourceCpuDetail: '2C',
+              resourceMemoryDetail: '4GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '100GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 100GB。',
+              scenarioUsage: 'Redis 3主3从集群 小型配置',
+              scenarioUserScale: '参考配置：集群A-小型3主3从',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              maxConnections: '10000',
+              opsPerSecond: '50000',
+              memoryUsage: '70%',
+              hitRate: '90%',
+              dataSize: '10GB',
+              persistenceMode: 'RDB + AOF'
+            },
+          },
+          {
+            key: '2C4G',
+            configLabel: 'Redis 3主3从集群 2C4G',
+            cpu: '2C',
+            memory: '4GB',
+            nodeCount: '6 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '100GB',
+            details: {
+              resourceCpuDetail: '2C',
+              resourceMemoryDetail: '4GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '100GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 100GB。',
+              scenarioUsage: 'Redis 一主2从3哨兵 小型配置',
+              scenarioUserScale: '参考配置：集群A-小型哨兵',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              maxConnections: '10000',
+              opsPerSecond: '50000',
+              memoryUsage: '70%',
+              hitRate: '90%',
+              dataSize: '10GB',
+              persistenceMode: 'RDB + AOF'
+            },
+          },
+          {
+            key: '4C8G',
+            configLabel: 'Redis 3主3从集群 4C8G',
+            cpu: '4C',
+            memory: '8GB',
+            nodeCount: '6 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '200GB',
+            details: {
+              resourceCpuDetail: '4C',
+              resourceMemoryDetail: '8GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '200GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 200GB。',
+              scenarioUsage: 'Redis 3主3从集群 中型配置',
+              scenarioUserScale: '参考配置：集群B-中型3主3从',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              maxConnections: '10000',
+              opsPerSecond: '50000',
+              memoryUsage: '70%',
+              hitRate: '90%',
+              dataSize: '10GB',
+              persistenceMode: 'RDB + AOF'
+            },
+          },
+          {
+            key: '4C8G',
+            configLabel: 'Redis 3主3从集群 4C8G',
+            cpu: '4C',
+            memory: '8GB',
+            nodeCount: '6 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '200GB',
+            details: {
+              resourceCpuDetail: '4C',
+              resourceMemoryDetail: '8GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '200GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 200GB。',
+              scenarioUsage: 'Redis 一主2从3哨兵 中型配置',
+              scenarioUserScale: '参考配置：集群B-中型哨兵',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              maxConnections: '10000',
+              opsPerSecond: '50000',
+              memoryUsage: '70%',
+              hitRate: '90%',
+              dataSize: '10GB',
+              persistenceMode: 'RDB + AOF'
+            },
+          },
+          {
+            key: '8C16G',
+            configLabel: 'Redis 3主3从集群 8C16G',
+            cpu: '8C',
+            memory: '16GB',
+            nodeCount: '6 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '500GB',
+            details: {
+              resourceCpuDetail: '8C',
+              resourceMemoryDetail: '16GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '500GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 500GB。',
+              scenarioUsage: 'Redis 3主3从集群 大型配置',
+              scenarioUserScale: '参考配置：集群C-大型3主3从',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              maxConnections: '10000',
+              opsPerSecond: '50000',
+              memoryUsage: '70%',
+              hitRate: '90%',
+              dataSize: '10GB',
+              persistenceMode: 'RDB + AOF'
+            },
+          },
+        ],
+      },
+      {
+        deploymentMode: '哨兵模式',
+        profiles: [
+          {
+            key: '8C16G',
+            configLabel: 'Redis 哨兵模式 8C16G',
+            cpu: '8C',
+            memory: '16GB',
+            nodeCount: '6 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '500GB',
+            details: {
+              resourceCpuDetail: '8C',
+              resourceMemoryDetail: '16GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '500GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 500GB。',
+              scenarioUsage: 'Redis 一主2从3哨兵 大型配置',
+              scenarioUserScale: '参考配置：哨兵C-大型哨兵',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              maxConnections: '10000',
+              opsPerSecond: '50000',
+              memoryUsage: '70%',
+              hitRate: '90%',
+              dataSize: '10GB',
+              persistenceMode: 'RDB + AOF'
+            },
+          },
+        ],
+      },
+    ],
+    Kafka: [
+      {
+        deploymentMode: '单节点',
+        profiles: [
+          {
+            key: '2C4G',
+            configLabel: 'Kafka 单节点 2C4G',
+            cpu: '2C',
+            memory: '4GB',
+            nodeCount: '1 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '200GB',
+            details: {
+              resourceCpuDetail: '2C',
+              resourceMemoryDetail: '4GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '200GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 200GB。',
+              scenarioUsage: 'Kafka 小型配置',
+              scenarioUserScale: '参考配置：配置A-小型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              throughput: '10000 msg/s',
+              partitionCount: '12',
+              replicationFactor: '3',
+              brokerCount: '3',
+              retentionPeriod: '7天'
+            },
+          },
+          {
+            key: '4C8G',
+            configLabel: 'Kafka 单节点 4C8G',
+            cpu: '4C',
+            memory: '8GB',
+            nodeCount: '1 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '500GB',
+            details: {
+              resourceCpuDetail: '4C',
+              resourceMemoryDetail: '8GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '500GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 500GB。',
+              scenarioUsage: 'Kafka 中型配置',
+              scenarioUserScale: '参考配置：配置B-中型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              throughput: '10000 msg/s',
+              partitionCount: '12',
+              replicationFactor: '3',
+              brokerCount: '3',
+              retentionPeriod: '7天'
+            },
+          },
+        ],
+      },
+      {
+        deploymentMode: '3节点集群',
+        profiles: [
+          {
+            key: '2C4G',
+            configLabel: 'Kafka 3节点集群 2C4G',
+            cpu: '2C',
+            memory: '4GB',
+            nodeCount: '3 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '200GB',
+            details: {
+              resourceCpuDetail: '2C',
+              resourceMemoryDetail: '4GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '200GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 200GB。',
+              scenarioUsage: 'Kafka 3节点集群 小型配置',
+              scenarioUserScale: '参考配置：集群A-小型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              throughput: '10000 msg/s',
+              partitionCount: '12',
+              replicationFactor: '3',
+              brokerCount: '3',
+              retentionPeriod: '7天'
+            },
+          },
+          {
+            key: '4C8G',
+            configLabel: 'Kafka 3节点集群 4C8G',
+            cpu: '4C',
+            memory: '8GB',
+            nodeCount: '3 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '500GB',
+            details: {
+              resourceCpuDetail: '4C',
+              resourceMemoryDetail: '8GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '500GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 500GB。',
+              scenarioUsage: 'Kafka 3节点集群 中型配置',
+              scenarioUserScale: '参考配置：集群B-中型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              throughput: '10000 msg/s',
+              partitionCount: '12',
+              replicationFactor: '3',
+              brokerCount: '3',
+              retentionPeriod: '7天'
+            },
+          },
+          {
+            key: '8C16G',
+            configLabel: 'Kafka 3节点集群 8C16G',
+            cpu: '8C',
+            memory: '16GB',
+            nodeCount: '3 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '1000GB',
+            details: {
+              resourceCpuDetail: '8C',
+              resourceMemoryDetail: '16GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '1000GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 1000GB。',
+              scenarioUsage: 'Kafka 3节点集群 大型配置',
+              scenarioUserScale: '参考配置：集群C-大型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              throughput: '10000 msg/s',
+              partitionCount: '12',
+              replicationFactor: '3',
+              brokerCount: '3',
+              retentionPeriod: '7天'
+            },
+          },
+        ],
+      },
+      {
+        deploymentMode: 'Kafka+Zookeeper 组合',
+        profiles: [
+          {
+            key: '2C4G',
+            configLabel: 'Kafka Kafka+Zookeeper 组合 2C4G',
+            cpu: '2C',
+            memory: '4GB',
+            nodeCount: '6 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '200GB',
+            details: {
+              resourceCpuDetail: '2C',
+              resourceMemoryDetail: '4GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '200GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 200GB。',
+              scenarioUsage: 'Kafka3节点+Zookeeper3节点 小型配置',
+              scenarioUserScale: '参考配置：组合A-小型Kafka3加Zookeeper3',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              throughput: '10000 msg/s',
+              partitionCount: '12',
+              replicationFactor: '3',
+              brokerCount: '3',
+              retentionPeriod: '7天'
+            },
+          },
+          {
+            key: '4C8G',
+            configLabel: 'Kafka Kafka+Zookeeper 组合 4C8G',
+            cpu: '4C',
+            memory: '8GB',
+            nodeCount: '6 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '500GB',
+            details: {
+              resourceCpuDetail: '4C',
+              resourceMemoryDetail: '8GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '500GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 500GB。',
+              scenarioUsage: 'Kafka3节点+Zookeeper3节点 中型配置',
+              scenarioUserScale: '参考配置：组合B-中型Kafka3加Zookeeper3',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              throughput: '10000 msg/s',
+              partitionCount: '12',
+              replicationFactor: '3',
+              brokerCount: '3',
+              retentionPeriod: '7天'
+            },
+          },
+          {
+            key: '8C16G',
+            configLabel: 'Kafka Kafka+Zookeeper 组合 8C16G',
+            cpu: '8C',
+            memory: '16GB',
+            nodeCount: '6 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '1000GB',
+            details: {
+              resourceCpuDetail: '8C',
+              resourceMemoryDetail: '16GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '1000GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 1000GB。',
+              scenarioUsage: 'Kafka3节点+Zookeeper3节点 大型配置',
+              scenarioUserScale: '参考配置：组合C-大型Kafka3加Zookeeper3',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              throughput: '10000 msg/s',
+              partitionCount: '12',
+              replicationFactor: '3',
+              brokerCount: '3',
+              retentionPeriod: '7天'
+            },
+          },
+        ],
+      },
+    ],
+  },
+  压测: {
+    MySQL: [
+      {
+        deploymentMode: '单机',
+        profiles: [
+          {
+            key: '2C4G',
+            configLabel: 'MySQL 单机 2C4G',
+            cpu: '2C',
+            memory: '4GB',
+            nodeCount: '1 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '100GB',
+            details: {
+              resourceCpuDetail: '2C',
+              resourceMemoryDetail: '4GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '100GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 100GB。',
+              scenarioUsage: '配置A-小型',
+              scenarioUserScale: '参考配置：配置A-小型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              masterCpuDetail: '2C',
+              masterMemoryDetail: '4GB',
+              masterSystemDisk: '80GB',
+              masterDataDisk: '100GB',
+              masterConnections: '500',
+              masterDailyQps: '1000',
+              masterPeakQps: '3000'
+            },
+          },
+          {
+            key: '4C8G',
+            configLabel: 'MySQL 单机 4C8G',
+            cpu: '4C',
+            memory: '8GB',
+            nodeCount: '1 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '200GB',
+            details: {
+              resourceCpuDetail: '4C',
+              resourceMemoryDetail: '8GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '200GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 200GB。',
+              scenarioUsage: '配置B-中型',
+              scenarioUserScale: '参考配置：配置B-中型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              masterCpuDetail: '2C',
+              masterMemoryDetail: '4GB',
+              masterSystemDisk: '80GB',
+              masterDataDisk: '100GB',
+              masterConnections: '500',
+              masterDailyQps: '1000',
+              masterPeakQps: '3000'
+            },
+          },
+        ],
+      },
+    ],
+    RabbitMQ: [
+      {
+        deploymentMode: '单机',
+        profiles: [
+          {
+            key: '2C4G',
+            configLabel: 'RabbitMQ 单机 2C4G',
+            cpu: '2C',
+            memory: '4GB',
+            nodeCount: '1 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '100GB',
+            details: {
+              resourceCpuDetail: '2C',
+              resourceMemoryDetail: '4GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '100GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 100GB。',
+              scenarioUsage: '配置A-小型',
+              scenarioUserScale: '参考配置：配置A-小型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              concurrentConnections: '1000',
+              messageThroughput: '5000 msg/s',
+              queueCount: '50',
+              haFeatures: '镜像队列'
+            },
+          },
+          {
+            key: '4C8G',
+            configLabel: 'RabbitMQ 单机 4C8G',
+            cpu: '4C',
+            memory: '8GB',
+            nodeCount: '1 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '200GB',
+            details: {
+              resourceCpuDetail: '4C',
+              resourceMemoryDetail: '8GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '200GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 200GB。',
+              scenarioUsage: '配置B-中型',
+              scenarioUserScale: '参考配置：配置B-中型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              concurrentConnections: '1000',
+              messageThroughput: '5000 msg/s',
+              queueCount: '50',
+              haFeatures: '镜像队列'
+            },
+          },
+        ],
+      },
+    ],
+    Redis: [
+      {
+        deploymentMode: '单节点',
+        profiles: [
+          {
+            key: '2C4G',
+            configLabel: 'Redis 单节点 2C4G',
+            cpu: '2C',
+            memory: '4GB',
+            nodeCount: '1 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '100GB',
+            details: {
+              resourceCpuDetail: '2C',
+              resourceMemoryDetail: '4GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '100GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 100GB。',
+              scenarioUsage: 'Redis 小型配置',
+              scenarioUserScale: '参考配置：配置A-小型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              maxConnections: '10000',
+              opsPerSecond: '50000',
+              memoryUsage: '70%',
+              hitRate: '90%',
+              dataSize: '10GB',
+              persistenceMode: 'RDB + AOF'
+            },
+          },
+          {
+            key: '4C8G',
+            configLabel: 'Redis 单节点 4C8G',
+            cpu: '4C',
+            memory: '8GB',
+            nodeCount: '1 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '200GB',
+            details: {
+              resourceCpuDetail: '4C',
+              resourceMemoryDetail: '8GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '200GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 200GB。',
+              scenarioUsage: 'Redis 中型配置',
+              scenarioUserScale: '参考配置：配置B-中型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              maxConnections: '10000',
+              opsPerSecond: '50000',
+              memoryUsage: '70%',
+              hitRate: '90%',
+              dataSize: '10GB',
+              persistenceMode: 'RDB + AOF'
+            },
+          },
+          {
+            key: '8C16G',
+            configLabel: 'Redis 单节点 8C16G',
+            cpu: '8C',
+            memory: '16GB',
+            nodeCount: '1 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '500GB',
+            details: {
+              resourceCpuDetail: '8C',
+              resourceMemoryDetail: '16GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '500GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 500GB。',
+              scenarioUsage: 'Redis 大型配置',
+              scenarioUserScale: '参考配置：配置C-大型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              maxConnections: '10000',
+              opsPerSecond: '50000',
+              memoryUsage: '70%',
+              hitRate: '90%',
+              dataSize: '10GB',
+              persistenceMode: 'RDB + AOF'
+            },
+          },
+        ],
+      },
+      {
+        deploymentMode: '3主3从集群',
+        profiles: [
+          {
+            key: '2C4G',
+            configLabel: 'Redis 3主3从集群 2C4G',
+            cpu: '2C',
+            memory: '4GB',
+            nodeCount: '6 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '100GB',
+            details: {
+              resourceCpuDetail: '2C',
+              resourceMemoryDetail: '4GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '100GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 100GB。',
+              scenarioUsage: 'Redis 3主3从集群 小型配置',
+              scenarioUserScale: '参考配置：集群A-小型3主3从',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              maxConnections: '10000',
+              opsPerSecond: '50000',
+              memoryUsage: '70%',
+              hitRate: '90%',
+              dataSize: '10GB',
+              persistenceMode: 'RDB + AOF'
+            },
+          },
+          {
+            key: '2C4G',
+            configLabel: 'Redis 3主3从集群 2C4G',
+            cpu: '2C',
+            memory: '4GB',
+            nodeCount: '6 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '100GB',
+            details: {
+              resourceCpuDetail: '2C',
+              resourceMemoryDetail: '4GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '100GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 100GB。',
+              scenarioUsage: 'Redis 一主2从3哨兵 小型配置',
+              scenarioUserScale: '参考配置：集群A-小型哨兵',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              maxConnections: '10000',
+              opsPerSecond: '50000',
+              memoryUsage: '70%',
+              hitRate: '90%',
+              dataSize: '10GB',
+              persistenceMode: 'RDB + AOF'
+            },
+          },
+          {
+            key: '4C8G',
+            configLabel: 'Redis 3主3从集群 4C8G',
+            cpu: '4C',
+            memory: '8GB',
+            nodeCount: '6 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '200GB',
+            details: {
+              resourceCpuDetail: '4C',
+              resourceMemoryDetail: '8GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '200GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 200GB。',
+              scenarioUsage: 'Redis 3主3从集群 中型配置',
+              scenarioUserScale: '参考配置：集群B-中型3主3从',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              maxConnections: '10000',
+              opsPerSecond: '50000',
+              memoryUsage: '70%',
+              hitRate: '90%',
+              dataSize: '10GB',
+              persistenceMode: 'RDB + AOF'
+            },
+          },
+          {
+            key: '4C8G',
+            configLabel: 'Redis 3主3从集群 4C8G',
+            cpu: '4C',
+            memory: '8GB',
+            nodeCount: '6 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '200GB',
+            details: {
+              resourceCpuDetail: '4C',
+              resourceMemoryDetail: '8GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '200GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 200GB。',
+              scenarioUsage: 'Redis 一主2从3哨兵 中型配置',
+              scenarioUserScale: '参考配置：集群B-中型哨兵',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              maxConnections: '10000',
+              opsPerSecond: '50000',
+              memoryUsage: '70%',
+              hitRate: '90%',
+              dataSize: '10GB',
+              persistenceMode: 'RDB + AOF'
+            },
+          },
+          {
+            key: '8C16G',
+            configLabel: 'Redis 3主3从集群 8C16G',
+            cpu: '8C',
+            memory: '16GB',
+            nodeCount: '6 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '500GB',
+            details: {
+              resourceCpuDetail: '8C',
+              resourceMemoryDetail: '16GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '500GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 500GB。',
+              scenarioUsage: 'Redis 3主3从集群 大型配置',
+              scenarioUserScale: '参考配置：集群C-大型3主3从',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              maxConnections: '10000',
+              opsPerSecond: '50000',
+              memoryUsage: '70%',
+              hitRate: '90%',
+              dataSize: '10GB',
+              persistenceMode: 'RDB + AOF'
+            },
+          },
+          {
+            key: '8C16G',
+            configLabel: 'Redis 3主3从集群 8C16G',
+            cpu: '8C',
+            memory: '16GB',
+            nodeCount: '6 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '500GB',
+            details: {
+              resourceCpuDetail: '8C',
+              resourceMemoryDetail: '16GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '500GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 500GB。',
+              scenarioUsage: 'Redis 一主2从3哨兵 大型配置',
+              scenarioUserScale: '参考配置：集群D-超大型哨兵',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              maxConnections: '10000',
+              opsPerSecond: '50000',
+              memoryUsage: '70%',
+              hitRate: '90%',
+              dataSize: '10GB',
+              persistenceMode: 'RDB + AOF'
+            },
+          },
+        ],
+      },
+      {
+        deploymentMode: '哨兵模式',
+        profiles: [
+          {
+            key: '8C16G',
+            configLabel: 'Redis 哨兵模式 8C16G',
+            cpu: '8C',
+            memory: '16GB',
+            nodeCount: '6 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '500GB',
+            details: {
+              resourceCpuDetail: '8C',
+              resourceMemoryDetail: '16GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '500GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 500GB。',
+              scenarioUsage: 'Redis 一主2从3哨兵 大型配置',
+              scenarioUserScale: '参考配置：哨兵C-大型哨兵',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              maxConnections: '10000',
+              opsPerSecond: '50000',
+              memoryUsage: '70%',
+              hitRate: '90%',
+              dataSize: '10GB',
+              persistenceMode: 'RDB + AOF'
+            },
+          },
+        ],
+      },
+    ],
+    Kafka: [
+      {
+        deploymentMode: '单节点',
+        profiles: [
+          {
+            key: '2C4G',
+            configLabel: 'Kafka 单节点 2C4G',
+            cpu: '2C',
+            memory: '4GB',
+            nodeCount: '1 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '200GB',
+            details: {
+              resourceCpuDetail: '2C',
+              resourceMemoryDetail: '4GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '200GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 200GB。',
+              scenarioUsage: 'Kafka 小型配置',
+              scenarioUserScale: '参考配置：配置A-小型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              throughput: '10000 msg/s',
+              partitionCount: '12',
+              replicationFactor: '3',
+              brokerCount: '3',
+              retentionPeriod: '7天'
+            },
+          },
+          {
+            key: '4C8G',
+            configLabel: 'Kafka 单节点 4C8G',
+            cpu: '4C',
+            memory: '8GB',
+            nodeCount: '1 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '500GB',
+            details: {
+              resourceCpuDetail: '4C',
+              resourceMemoryDetail: '8GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '500GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 500GB。',
+              scenarioUsage: 'Kafka 中型配置',
+              scenarioUserScale: '参考配置：配置B-中型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              throughput: '10000 msg/s',
+              partitionCount: '12',
+              replicationFactor: '3',
+              brokerCount: '3',
+              retentionPeriod: '7天'
+            },
+          },
+        ],
+      },
+      {
+        deploymentMode: '3节点集群',
+        profiles: [
+          {
+            key: '2C4G',
+            configLabel: 'Kafka 3节点集群 2C4G',
+            cpu: '2C',
+            memory: '4GB',
+            nodeCount: '3 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '200GB',
+            details: {
+              resourceCpuDetail: '2C',
+              resourceMemoryDetail: '4GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '200GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 200GB。',
+              scenarioUsage: 'Kafka 3节点集群 小型配置',
+              scenarioUserScale: '参考配置：集群A-小型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              throughput: '10000 msg/s',
+              partitionCount: '12',
+              replicationFactor: '3',
+              brokerCount: '3',
+              retentionPeriod: '7天'
+            },
+          },
+          {
+            key: '4C8G',
+            configLabel: 'Kafka 3节点集群 4C8G',
+            cpu: '4C',
+            memory: '8GB',
+            nodeCount: '3 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '500GB',
+            details: {
+              resourceCpuDetail: '4C',
+              resourceMemoryDetail: '8GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '500GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 500GB。',
+              scenarioUsage: 'Kafka 3节点集群 中型配置',
+              scenarioUserScale: '参考配置：集群B-中型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              throughput: '10000 msg/s',
+              partitionCount: '12',
+              replicationFactor: '3',
+              brokerCount: '3',
+              retentionPeriod: '7天'
+            },
+          },
+          {
+            key: '8C16G',
+            configLabel: 'Kafka 3节点集群 8C16G',
+            cpu: '8C',
+            memory: '16GB',
+            nodeCount: '3 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '1000GB',
+            details: {
+              resourceCpuDetail: '8C',
+              resourceMemoryDetail: '16GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '1000GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 1000GB。',
+              scenarioUsage: 'Kafka 3节点集群 大型配置',
+              scenarioUserScale: '参考配置：集群C-大型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              throughput: '10000 msg/s',
+              partitionCount: '12',
+              replicationFactor: '3',
+              brokerCount: '3',
+              retentionPeriod: '7天'
+            },
+          },
+        ],
+      },
+      {
+        deploymentMode: 'Kafka+Zookeeper 组合',
+        profiles: [
+          {
+            key: '2C4G',
+            configLabel: 'Kafka Kafka+Zookeeper 组合 2C4G',
+            cpu: '2C',
+            memory: '4GB',
+            nodeCount: '6 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '200GB',
+            details: {
+              resourceCpuDetail: '2C',
+              resourceMemoryDetail: '4GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '200GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 200GB。',
+              scenarioUsage: 'Kafka3节点+Zookeeper3节点 小型配置',
+              scenarioUserScale: '参考配置：组合A-小型Kafka3加Zookeeper3',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              throughput: '10000 msg/s',
+              partitionCount: '12',
+              replicationFactor: '3',
+              brokerCount: '3',
+              retentionPeriod: '7天'
+            },
+          },
+          {
+            key: '4C8G',
+            configLabel: 'Kafka Kafka+Zookeeper 组合 4C8G',
+            cpu: '4C',
+            memory: '8GB',
+            nodeCount: '6 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '500GB',
+            details: {
+              resourceCpuDetail: '4C',
+              resourceMemoryDetail: '8GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '500GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 500GB。',
+              scenarioUsage: 'Kafka3节点+Zookeeper3节点 中型配置',
+              scenarioUserScale: '参考配置：组合B-中型Kafka3加Zookeeper3',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              throughput: '10000 msg/s',
+              partitionCount: '12',
+              replicationFactor: '3',
+              brokerCount: '3',
+              retentionPeriod: '7天'
+            },
+          },
+          {
+            key: '8C16G',
+            configLabel: 'Kafka Kafka+Zookeeper 组合 8C16G',
+            cpu: '8C',
+            memory: '16GB',
+            nodeCount: '6 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '1000GB',
+            details: {
+              resourceCpuDetail: '8C',
+              resourceMemoryDetail: '16GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '1000GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 1000GB。',
+              scenarioUsage: 'Kafka3节点+Zookeeper3节点 大型配置',
+              scenarioUserScale: '参考配置：组合C-大型Kafka3加Zookeeper3',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              throughput: '10000 msg/s',
+              partitionCount: '12',
+              replicationFactor: '3',
+              brokerCount: '3',
+              retentionPeriod: '7天'
+            },
+          },
+        ],
+      },
+    ],
+  },
+  PROD: {
+    MySQL: [
+      {
+        deploymentMode: '主从',
+        profiles: [
+          {
+            key: '2C4G',
+            configLabel: 'MySQL 主从 2C4G',
+            cpu: '2C',
+            memory: '4GB',
+            nodeCount: '2 节点',
+            diskType: '超高IO',
+            systemDisk: '80GB',
+            dataDisk: '100GB',
+            details: {
+              resourceCpuDetail: '2C',
+              resourceMemoryDetail: '4GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '100GB',
+              diskTypeDescription: '超高IO 磁盘，系统盘 80GB，数据盘 100GB。',
+              scenarioUsage: '配置A-小型主从',
+              scenarioUserScale: '参考配置：配置A-小型主从',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              masterCpuDetail: '2C',
+              masterMemoryDetail: '4GB',
+              masterSystemDisk: '80GB',
+              masterDataDisk: '100GB',
+              masterConnections: '500',
+              masterDailyQps: '1000',
+              masterPeakQps: '3000'
+            },
+          },
+          {
+            key: '4C8G',
+            configLabel: 'MySQL 主从 4C8G',
+            cpu: '4C',
+            memory: '8GB',
+            nodeCount: '2 节点',
+            diskType: '超高IO',
+            systemDisk: '80GB',
+            dataDisk: '200GB',
+            details: {
+              resourceCpuDetail: '4C',
+              resourceMemoryDetail: '8GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '200GB',
+              diskTypeDescription: '超高IO 磁盘，系统盘 80GB，数据盘 200GB。',
+              scenarioUsage: '配置B-标准主从',
+              scenarioUserScale: '参考配置：配置B-标准主从',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              masterCpuDetail: '2C',
+              masterMemoryDetail: '4GB',
+              masterSystemDisk: '80GB',
+              masterDataDisk: '100GB',
+              masterConnections: '500',
+              masterDailyQps: '1000',
+              masterPeakQps: '3000'
+            },
+          },
+          {
+            key: '8C16G',
+            configLabel: 'MySQL 主从 8C16G',
+            cpu: '8C',
+            memory: '16GB',
+            nodeCount: '2 节点',
+            diskType: '超高IO',
+            systemDisk: '80GB',
+            dataDisk: '500GB',
+            details: {
+              resourceCpuDetail: '8C',
+              resourceMemoryDetail: '16GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '500GB',
+              diskTypeDescription: '超高IO 磁盘，系统盘 80GB，数据盘 500GB。',
+              scenarioUsage: '配置C-高性能主从',
+              scenarioUserScale: '参考配置：配置C-高性能主从',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              masterCpuDetail: '2C',
+              masterMemoryDetail: '4GB',
+              masterSystemDisk: '80GB',
+              masterDataDisk: '100GB',
+              masterConnections: '500',
+              masterDailyQps: '1000',
+              masterPeakQps: '3000'
+            },
+          },
+        ],
+      },
+    ],
+    RabbitMQ: [
+      {
+        deploymentMode: '集群',
+        profiles: [
+          {
+            key: '2C4G',
+            configLabel: 'RabbitMQ 集群 2C4G',
+            cpu: '2C',
+            memory: '4GB',
+            nodeCount: '3 节点',
+            diskType: '超高IO',
+            systemDisk: '80GB',
+            dataDisk: '100GB',
+            details: {
+              resourceCpuDetail: '2C',
+              resourceMemoryDetail: '4GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '100GB',
+              diskTypeDescription: '超高IO 磁盘，系统盘 80GB，数据盘 100GB。',
+              scenarioUsage: '配置A-小型集群',
+              scenarioUserScale: '参考配置：配置A-小型集群',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              concurrentConnections: '1000',
+              messageThroughput: '5000 msg/s',
+              queueCount: '50',
+              haFeatures: '镜像队列'
+            },
+          },
+          {
+            key: '4C8G',
+            configLabel: 'RabbitMQ 集群 4C8G',
+            cpu: '4C',
+            memory: '8GB',
+            nodeCount: '3 节点',
+            diskType: '超高IO',
+            systemDisk: '80GB',
+            dataDisk: '200GB',
+            details: {
+              resourceCpuDetail: '4C',
+              resourceMemoryDetail: '8GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '200GB',
+              diskTypeDescription: '超高IO 磁盘，系统盘 80GB，数据盘 200GB。',
+              scenarioUsage: '配置B-标准集群',
+              scenarioUserScale: '参考配置：配置B-标准集群',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              concurrentConnections: '1000',
+              messageThroughput: '5000 msg/s',
+              queueCount: '50',
+              haFeatures: '镜像队列'
+            },
+          },
+        ],
+      },
+    ],
+    Redis: [
+      {
+        deploymentMode: '单节点',
+        profiles: [
+          {
+            key: '2C4G',
+            configLabel: 'Redis 单节点 2C4G',
+            cpu: '2C',
+            memory: '4GB',
+            nodeCount: '1 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '100GB',
+            details: {
+              resourceCpuDetail: '2C',
+              resourceMemoryDetail: '4GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '100GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 100GB。',
+              scenarioUsage: 'Redis 小型配置',
+              scenarioUserScale: '参考配置：配置A-小型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              maxConnections: '10000',
+              opsPerSecond: '50000',
+              memoryUsage: '70%',
+              hitRate: '90%',
+              dataSize: '10GB',
+              persistenceMode: 'RDB + AOF'
+            },
+          },
+          {
+            key: '4C8G',
+            configLabel: 'Redis 单节点 4C8G',
+            cpu: '4C',
+            memory: '8GB',
+            nodeCount: '1 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '200GB',
+            details: {
+              resourceCpuDetail: '4C',
+              resourceMemoryDetail: '8GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '200GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 200GB。',
+              scenarioUsage: 'Redis 中型配置',
+              scenarioUserScale: '参考配置：配置B-中型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              maxConnections: '10000',
+              opsPerSecond: '50000',
+              memoryUsage: '70%',
+              hitRate: '90%',
+              dataSize: '10GB',
+              persistenceMode: 'RDB + AOF'
+            },
+          },
+          {
+            key: '8C16G',
+            configLabel: 'Redis 单节点 8C16G',
+            cpu: '8C',
+            memory: '16GB',
+            nodeCount: '1 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '500GB',
+            details: {
+              resourceCpuDetail: '8C',
+              resourceMemoryDetail: '16GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '500GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 500GB。',
+              scenarioUsage: 'Redis 大型配置',
+              scenarioUserScale: '参考配置：配置C-大型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              maxConnections: '10000',
+              opsPerSecond: '50000',
+              memoryUsage: '70%',
+              hitRate: '90%',
+              dataSize: '10GB',
+              persistenceMode: 'RDB + AOF'
+            },
+          },
+        ],
+      },
+      {
+        deploymentMode: '3主3从集群',
+        profiles: [
+          {
+            key: '2C4G',
+            configLabel: 'Redis 3主3从集群 2C4G',
+            cpu: '2C',
+            memory: '4GB',
+            nodeCount: '6 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '100GB',
+            details: {
+              resourceCpuDetail: '2C',
+              resourceMemoryDetail: '4GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '100GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 100GB。',
+              scenarioUsage: 'Redis 3主3从集群 小型配置',
+              scenarioUserScale: '参考配置：集群A-小型3主3从',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              maxConnections: '10000',
+              opsPerSecond: '50000',
+              memoryUsage: '70%',
+              hitRate: '90%',
+              dataSize: '10GB',
+              persistenceMode: 'RDB + AOF'
+            },
+          },
+          {
+            key: '2C4G',
+            configLabel: 'Redis 3主3从集群 2C4G',
+            cpu: '2C',
+            memory: '4GB',
+            nodeCount: '6 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '100GB',
+            details: {
+              resourceCpuDetail: '2C',
+              resourceMemoryDetail: '4GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '100GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 100GB。',
+              scenarioUsage: 'Redis 一主2从3哨兵 小型配置',
+              scenarioUserScale: '参考配置：集群A-小型哨兵',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              maxConnections: '10000',
+              opsPerSecond: '50000',
+              memoryUsage: '70%',
+              hitRate: '90%',
+              dataSize: '10GB',
+              persistenceMode: 'RDB + AOF'
+            },
+          },
+          {
+            key: '4C8G',
+            configLabel: 'Redis 3主3从集群 4C8G',
+            cpu: '4C',
+            memory: '8GB',
+            nodeCount: '6 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '200GB',
+            details: {
+              resourceCpuDetail: '4C',
+              resourceMemoryDetail: '8GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '200GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 200GB。',
+              scenarioUsage: 'Redis 3主3从集群 中型配置',
+              scenarioUserScale: '参考配置：集群B-中型3主3从',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              maxConnections: '10000',
+              opsPerSecond: '50000',
+              memoryUsage: '70%',
+              hitRate: '90%',
+              dataSize: '10GB',
+              persistenceMode: 'RDB + AOF'
+            },
+          },
+          {
+            key: '4C8G',
+            configLabel: 'Redis 3主3从集群 4C8G',
+            cpu: '4C',
+            memory: '8GB',
+            nodeCount: '6 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '200GB',
+            details: {
+              resourceCpuDetail: '4C',
+              resourceMemoryDetail: '8GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '200GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 200GB。',
+              scenarioUsage: 'Redis 一主2从3哨兵 中型配置',
+              scenarioUserScale: '参考配置：集群B-中型哨兵',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              maxConnections: '10000',
+              opsPerSecond: '50000',
+              memoryUsage: '70%',
+              hitRate: '90%',
+              dataSize: '10GB',
+              persistenceMode: 'RDB + AOF'
+            },
+          },
+          {
+            key: '8C16G',
+            configLabel: 'Redis 3主3从集群 8C16G',
+            cpu: '8C',
+            memory: '16GB',
+            nodeCount: '6 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '500GB',
+            details: {
+              resourceCpuDetail: '8C',
+              resourceMemoryDetail: '16GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '500GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 500GB。',
+              scenarioUsage: 'Redis 3主3从集群 大型配置',
+              scenarioUserScale: '参考配置：集群C-大型3主3从',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              maxConnections: '10000',
+              opsPerSecond: '50000',
+              memoryUsage: '70%',
+              hitRate: '90%',
+              dataSize: '10GB',
+              persistenceMode: 'RDB + AOF'
+            },
+          },
+          {
+            key: '8C16G',
+            configLabel: 'Redis 3主3从集群 8C16G',
+            cpu: '8C',
+            memory: '16GB',
+            nodeCount: '6 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '500GB',
+            details: {
+              resourceCpuDetail: '8C',
+              resourceMemoryDetail: '16GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '500GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 500GB。',
+              scenarioUsage: 'Redis 一主2从3哨兵 大型配置',
+              scenarioUserScale: '参考配置：集群C-大型哨兵',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              maxConnections: '10000',
+              opsPerSecond: '50000',
+              memoryUsage: '70%',
+              hitRate: '90%',
+              dataSize: '10GB',
+              persistenceMode: 'RDB + AOF'
+            },
+          },
+        ],
+      },
+    ],
+    Kafka: [
+      {
+        deploymentMode: '单节点',
+        profiles: [
+          {
+            key: '2C4G',
+            configLabel: 'Kafka 单节点 2C4G',
+            cpu: '2C',
+            memory: '4GB',
+            nodeCount: '1 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '200GB',
+            details: {
+              resourceCpuDetail: '2C',
+              resourceMemoryDetail: '4GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '200GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 200GB。',
+              scenarioUsage: 'Kafka 小型配置',
+              scenarioUserScale: '参考配置：配置A-小型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              throughput: '10000 msg/s',
+              partitionCount: '12',
+              replicationFactor: '3',
+              brokerCount: '3',
+              retentionPeriod: '7天'
+            },
+          },
+          {
+            key: '4C8G',
+            configLabel: 'Kafka 单节点 4C8G',
+            cpu: '4C',
+            memory: '8GB',
+            nodeCount: '1 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '500GB',
+            details: {
+              resourceCpuDetail: '4C',
+              resourceMemoryDetail: '8GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '500GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 500GB。',
+              scenarioUsage: 'Kafka 中型配置',
+              scenarioUserScale: '参考配置：配置B-中型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              throughput: '10000 msg/s',
+              partitionCount: '12',
+              replicationFactor: '3',
+              brokerCount: '3',
+              retentionPeriod: '7天'
+            },
+          },
+          {
+            key: '8C16G',
+            configLabel: 'Kafka 单节点 8C16G',
+            cpu: '8C',
+            memory: '16GB',
+            nodeCount: '1 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '1000GB',
+            details: {
+              resourceCpuDetail: '8C',
+              resourceMemoryDetail: '16GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '1000GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 1000GB。',
+              scenarioUsage: 'Kafka 大型配置',
+              scenarioUserScale: '参考配置：配置C-大型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              throughput: '10000 msg/s',
+              partitionCount: '12',
+              replicationFactor: '3',
+              brokerCount: '3',
+              retentionPeriod: '7天'
+            },
+          },
+        ],
+      },
+      {
+        deploymentMode: '3节点集群',
+        profiles: [
+          {
+            key: '2C4G',
+            configLabel: 'Kafka 3节点集群 2C4G',
+            cpu: '2C',
+            memory: '4GB',
+            nodeCount: '3 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '200GB',
+            details: {
+              resourceCpuDetail: '2C',
+              resourceMemoryDetail: '4GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '200GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 200GB。',
+              scenarioUsage: 'Kafka 3节点集群 小型配置',
+              scenarioUserScale: '参考配置：集群A-小型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              throughput: '10000 msg/s',
+              partitionCount: '12',
+              replicationFactor: '3',
+              brokerCount: '3',
+              retentionPeriod: '7天'
+            },
+          },
+          {
+            key: '4C8G',
+            configLabel: 'Kafka 3节点集群 4C8G',
+            cpu: '4C',
+            memory: '8GB',
+            nodeCount: '3 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '500GB',
+            details: {
+              resourceCpuDetail: '4C',
+              resourceMemoryDetail: '8GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '500GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 500GB。',
+              scenarioUsage: 'Kafka 3节点集群 中型配置',
+              scenarioUserScale: '参考配置：集群B-中型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              throughput: '10000 msg/s',
+              partitionCount: '12',
+              replicationFactor: '3',
+              brokerCount: '3',
+              retentionPeriod: '7天'
+            },
+          },
+          {
+            key: '8C16G',
+            configLabel: 'Kafka 3节点集群 8C16G',
+            cpu: '8C',
+            memory: '16GB',
+            nodeCount: '3 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '1000GB',
+            details: {
+              resourceCpuDetail: '8C',
+              resourceMemoryDetail: '16GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '1000GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 1000GB。',
+              scenarioUsage: 'Kafka 3节点集群 大型配置',
+              scenarioUserScale: '参考配置：集群C-大型',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              throughput: '10000 msg/s',
+              partitionCount: '12',
+              replicationFactor: '3',
+              brokerCount: '3',
+              retentionPeriod: '7天'
+            },
+          },
+        ],
+      },
+      {
+        deploymentMode: 'Kafka+Zookeeper 组合',
+        profiles: [
+          {
+            key: '2C4G',
+            configLabel: 'Kafka Kafka+Zookeeper 组合 2C4G',
+            cpu: '2C',
+            memory: '4GB',
+            nodeCount: '6 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '200GB',
+            details: {
+              resourceCpuDetail: '2C',
+              resourceMemoryDetail: '4GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '200GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 200GB。',
+              scenarioUsage: 'Kafka3节点+Zookeeper3节点 小型配置',
+              scenarioUserScale: '参考配置：组合A-小型Kafka3加Zookeeper3',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              throughput: '10000 msg/s',
+              partitionCount: '12',
+              replicationFactor: '3',
+              brokerCount: '3',
+              retentionPeriod: '7天'
+            },
+          },
+          {
+            key: '4C8G',
+            configLabel: 'Kafka Kafka+Zookeeper 组合 4C8G',
+            cpu: '4C',
+            memory: '8GB',
+            nodeCount: '6 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '500GB',
+            details: {
+              resourceCpuDetail: '4C',
+              resourceMemoryDetail: '8GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '500GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 500GB。',
+              scenarioUsage: 'Kafka3节点+Zookeeper3节点 中型配置',
+              scenarioUserScale: '参考配置：组合B-中型Kafka3加Zookeeper3',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              throughput: '10000 msg/s',
+              partitionCount: '12',
+              replicationFactor: '3',
+              brokerCount: '3',
+              retentionPeriod: '7天'
+            },
+          },
+          {
+            key: '8C16G',
+            configLabel: 'Kafka Kafka+Zookeeper 组合 8C16G',
+            cpu: '8C',
+            memory: '16GB',
+            nodeCount: '6 节点',
+            diskType: '高IO',
+            systemDisk: '80GB',
+            dataDisk: '1000GB',
+            details: {
+              resourceCpuDetail: '8C',
+              resourceMemoryDetail: '16GB',
+              resourceSystemDisk: '80GB',
+              resourceDataDisk: '1000GB',
+              diskTypeDescription: '高IO 磁盘，系统盘 80GB，数据盘 1000GB。',
+              scenarioUsage: 'Kafka3节点+Zookeeper3节点 大型配置',
+              scenarioUserScale: '参考配置：组合C-大型Kafka3加Zookeeper3',
+              architectureType: 'x86 单机/集群',
+              diskIops: '3000',
+              diskThroughput: '100MB/s',
+              recommendationLevel: '标准',
+              priceLevel: '中',
+              technicalNotes: '默认高IO磁盘，具体以评审为准。',
+              throughput: '10000 msg/s',
+              partitionCount: '12',
+              replicationFactor: '3',
+              brokerCount: '3',
+              retentionPeriod: '7天'
+            },
+          },
+        ],
+      },
+    ],
+  },
+};
+
+
+function buildVmConfigReference(draft: DraftState) {
+  const profiles = vmSpecProfiles[draft.environment as keyof typeof vmSpecProfiles] || vmSpecProfiles.UAT;
+  const selected = profiles.find(item => item.key === draft.vmSpecProfile);
+  const base = selected
+    ? [
+        `CPU详情：${selected.details.resourceCpuDetail}`,
+        `内存详情：${selected.details.resourceMemoryDetail}`,
+        `系统盘：${selected.details.resourceSystemDisk}`,
+        `数据盘：${selected.details.resourceDataDisk}`,
+        `磁盘说明：${selected.details.diskTypeDescription}`,
+        `适用场景：${selected.details.scenarioUsage}`,
+        `用户规模：${selected.details.scenarioUserScale}`,
+      ].join('\n')
+    : '';
+  const parts = [
+    draft.environment ? `环境：${draft.environment}` : '',
+    draft.vmResourceMode ? `模式：${draft.vmResourceMode}` : '',
+    draft.vmDeploymentMode ? `部署：${draft.vmDeploymentMode}` : '',
+    draft.vmSpecProfile ? `规格：${draft.vmSpecProfile}` : '',
+    draft.vmQuantity ? `数量：${draft.vmQuantity}` : '',
+    draft.vmDiskType ? `磁盘类型：${draft.vmDiskType}` : '',
+    draft.vmSystemDisk ? `系统盘：${draft.vmSystemDisk}` : '',
+    draft.vmDataDisk ? `数据盘：${draft.vmDataDisk}` : '',
+    draft.vmComponentSelection ? `组件：${draft.vmComponentSelection}` : '',
+  ].filter(Boolean);
+
+  return [base, parts.length > 0 ? parts.join(' · ') : '待选择环境和规格后生成配置参考。'].filter(Boolean).join('\n');
+}
+
+function buildVmComponentReference(component: string, config: VmComponentConfig) {
+  return [
+    `${component} 配置参考`,
+    config.deploymentMode ? `部署方式：${config.deploymentMode}` : '',
+    config.configLabel ? `配置名称：${config.configLabel}` : '',
+    config.specProfile ? `规格：${config.specProfile}` : '',
+    config.nodeCount ? `节点数：${config.nodeCount}` : '',
+    config.cpu ? `CPU：${config.cpu}` : '',
+    config.memory ? `内存：${config.memory}` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+function getVmComponentDeployments(environment: string, component: string) {
+  return vmComponentProfilesByEnvironment[environment]?.[component] || vmComponentProfilesByEnvironment.UAT[component] || [];
+}
+
+function getVmComponentProfiles(environment: string, component: string, deploymentMode: string) {
+  const deployment = getVmComponentDeployments(environment, component).find(item => item.deploymentMode === deploymentMode);
+  return deployment?.profiles || [];
+}
+
+const vmProfileDetailLabels: Record<string, string> = {
+  resourceCpuDetail: 'CPU详情',
+  resourceMemoryDetail: '内存详情',
+  resourceSystemDisk: '系统盘',
+  resourceDataDisk: '数据盘',
+  diskTypeDescription: '磁盘类型说明',
+  scenarioUsage: '适用场景',
+  scenarioUserScale: '用户规模',
+  architectureType: '架构类型',
+  diskIops: '磁盘IOPS',
+  diskThroughput: '磁盘吞吐量',
+  recommendationLevel: '推荐等级',
+  priceLevel: '价格等级',
+  technicalNotes: '技术说明',
+  masterCpuDetail: 'CPU详情',
+  masterMemoryDetail: '内存详情',
+  masterSystemDisk: '系统盘',
+  masterDataDisk: '数据盘',
+  masterConnections: '最大连接数',
+  masterDailyQps: '日均QPS',
+  masterPeakQps: '峰值QPS',
+  concurrentConnections: '并发连接数',
+  messageThroughput: '消息吞吐量',
+  queueCount: '队列数量',
+  haFeatures: '高可用特性',
+  maxConnections: '最大连接数',
+  opsPerSecond: '每秒操作数',
+  memoryUsage: '内存使用',
+  hitRate: '缓存命中率',
+  dataSize: '数据容量',
+  persistenceMode: '持久化模式',
+  throughput: '消息吞吐量',
+  partitionCount: '分区数量',
+  replicationFactor: '副本因子',
+  brokerCount: 'Broker节点数',
+  retentionPeriod: '消息保留期',
+};
+
+function buildVmProfileDetails(profile: VmSpecProfile | VmComponentProfile) {
+  const lines = Object.entries(profile.details)
+    .filter(([, value]) => value && String(value).trim().length > 0)
+    .map(([key, value]) => `${vmProfileDetailLabels[key] || key}：${value}`);
+  return Array.from(new Set(lines)).join('\n');
+}
+
+const guideCards: GuideCard[] = [
+  {
+    id: 'userType',
+    title: '确认使用对象',
+    description: '用于判断公网访问、安全边界和后续规格推荐。',
+    field: 'userType',
+    type: 'single',
+    options: ['内部办公系统', '对外业务系统', '经销商/合作伙伴系统'],
+    helper: '如需补充，可输入关键词如“经销商门户”“内部办公”“对外业务”。',
+    keywordHint: '例如：经销商门户、内部办公、对外业务、合作伙伴',
+  },
+  {
+    id: 'appType',
+    title: '确认应用形态',
+    description: '用于匹配运行环境、数据库/中间件和网络发布建议。',
+    field: 'appType',
+    type: 'single',
+    options: ['门户 / Web 应用', 'API 服务', '数据服务 / 报表'],
+    helper: '如需补充，可输入关键词如“门户”“接口”“报表”“数据分析”。',
+    keywordHint: '例如：门户、Web、接口、API、报表、数据服务',
+  },
+  {
+    id: 'clientType',
+    title: '确认访问终端',
+    description: '用于网络发布、认证方式和链路设计。',
+    field: 'clientType',
+    type: 'single',
+    options: ['PC Web', 'H5 / 移动端', 'API 调用', '多终端混合'],
+    helper: '如需补充，可输入关键词如“PC”“H5”“移动端”“接口”“多终端”。',
+    keywordHint: '例如：PC、H5、移动端、接口、多终端',
+  },
+  {
+    id: 'businessGoal',
+    title: '确认业务目标',
+    description: '说明本次申请的用途，便于评审时理解业务背景。',
+    field: 'businessGoal',
+    type: 'textarea',
+    placeholder: '例如：为经销商门户准备一套 UAT 联调环境，验证登录、订单查询和报表链路。',
+  },
+  {
+    id: 'integrationSystems',
+    title: '确认对接系统',
+    description: '用于识别上下游互访、网络策略和接口认证要求。',
+    field: 'integrationSystems',
+    type: 'textarea',
+    placeholder: '例如：需要对接统一认证、订单中心、报表平台和短信网关。',
+  },
+  {
+    id: 'accessScope',
+    title: '确认访问与网络',
+    description: '用于评审公网、域名、端口和系统互访边界。',
+    field: 'accessScope',
+    type: 'single',
+    options: ['仅内网访问', '可能需要公网访问', '需要系统互访 / 上下游联调'],
+    helper: '如需补充，可输入关键词如“公网”“域名”“互访”“专线”“内网”。',
+    keywordHint: '例如：公网、域名、端口、互访、内网、专线',
+  },
+  {
+    id: 'resourceNeed',
+    title: '确认资源诉求',
+    description: '用于核对资源清单和规格档位。',
+    field: 'resourceNeed',
+    type: 'single',
+    options: ['容器 / 运行环境', '云主机 / 计算资源', '数据库 / 缓存 / 中间件', '网络发布 / 域名 / 负载均衡'],
+    helper: '如需补充，可输入关键词如“容器”“数据库”“Redis”“云主机”“域名”。',
+    keywordHint: '例如：容器、云主机、MySQL、Redis、域名、负载均衡',
+  },
+  {
+    id: 'slaRequirement',
+    title: '确认 SLA / 安全 / 容灾',
+    description: '用于评审高可用、备份、安全和容灾要求。如暂未明确，可写“待评审确认”。',
+    field: 'slaRequirement',
+    type: 'textarea',
+    placeholder: '例如：当前以 UAT 联调为主，先按基础备份和日志要求准备；正式生产再补高可用和容灾要求。',
+  },
+] as const;
+
+const keywordMappings = [
+  { pattern: /经销商|合作伙伴|外部用户/i, patch: { userType: '经销商/合作伙伴系统' } },
+  { pattern: /内部|办公|员工/i, patch: { userType: '内部办公系统' } },
+  { pattern: /门户|web|网站|前台/i, patch: { appType: '门户 / Web 应用' } },
+  { pattern: /pc|pc web|浏览器/i, patch: { clientType: 'PC Web' } },
+  { pattern: /h5|移动端|app|小程序/i, patch: { clientType: 'H5 / 移动端' } },
+  { pattern: /接口|api|调用方/i, patch: { clientType: 'API 调用' } },
+  { pattern: /多终端|pc.*h5|h5.*pc/i, patch: { clientType: '多终端混合' } },
+  { pattern: /api|接口|服务/i, patch: { appType: 'API 服务' } },
+  { pattern: /报表|数据|分析/i, patch: { appType: '数据服务 / 报表' } },
+  { pattern: /公网|域名|外网/i, patch: { accessScope: '可能需要公网访问' } },
+  { pattern: /互访|联调|上下游|专线/i, patch: { accessScope: '需要系统互访 / 上下游联调' } },
+  { pattern: /容器|k8s|集群|paas/i, patch: { resourceNeed: '容器 / 运行环境' } },
+  { pattern: /云主机|虚机|服务器|主机/i, patch: { resourceNeed: '云主机 / 计算资源' } },
+  { pattern: /mysql|redis|数据库|缓存|中间件|mq/i, patch: { resourceNeed: '数据库 / 缓存 / 中间件' } },
+  { pattern: /负载均衡|lb|waf|发布|域名/i, patch: { resourceNeed: '网络发布 / 域名 / 负载均衡' } },
+  { pattern: /生产|prod/i, patch: { environment: 'PROD' } },
+  { pattern: /uat|验收/i, patch: { environment: 'UAT' } },
+  { pattern: /sit|测试/i, patch: { environment: 'SIT' } },
+  { pattern: /开发|dev/i, patch: { environment: 'DEV' } },
+] as const;
+
+function buildAssistantSummary(draft: DraftState) {
+  const suggestions: string[] = [];
+  if (draft.userType.includes('经销商') || draft.userType.includes('合作伙伴')) {
+    suggestions.push('识别到外部合作伙伴访问场景，建议后续重点确认公网访问、安全边界和认证方式。');
+  } else if (draft.userType.includes('对外业务')) {
+    suggestions.push('识别到对外业务系统，建议补充域名、端口和上下游访问边界。');
+  } else if (draft.userType.includes('内部办公')) {
+    suggestions.push('识别到内部办公场景，可优先按内网访问和基础 SLA 口径准备材料。');
+  }
+  if (draft.appType.includes('门户') || draft.appType.includes('Web')) {
+    suggestions.push('当前更像门户 / Web 应用，通常会涉及运行环境、网络发布以及数据库或缓存配套。');
+  } else if (draft.appType.includes('API')) {
+    suggestions.push('当前更像 API 服务，建议后续补充系统互访、调用方和接口安全要求。');
+  } else if (draft.appType.includes('数据服务')) {
+    suggestions.push('当前更像数据服务或报表类场景，建议重点确认数据库、存储和权限隔离要求。');
+  }
+  if (draft.clientType.includes('H5') || draft.clientType.includes('移动端')) {
+    suggestions.push('识别到移动端 / H5 访问终端，建议补充认证方式、域名发布和外网访问链路。');
+  } else if (draft.clientType.includes('API')) {
+    suggestions.push('识别到 API 调用场景，建议补充调用方范围、接口安全和系统互访边界。');
+  } else if (draft.clientType.includes('多终端')) {
+    suggestions.push('识别到多终端混合访问，建议分别确认 PC、移动端和接口调用链路。');
+  }
+  if (draft.accessScope.includes('公网')) suggestions.push('已识别公网访问倾向，待补域名、监听端口和网络边界。');
+  if (draft.integrationSystems.trim()) suggestions.push('已检测到上下游对接系统，建议后续补充互访带宽、网络策略和接口认证要求。');
+  if (draft.resourceNeed.includes('数据库') || draft.resourceNeed.includes('缓存') || draft.resourceNeed.includes('中间件')) {
+    suggestions.push('已识别数据库 / 中间件诉求，建议后续补充版本、容量和高可用要求。');
+  }
+  return suggestions;
+}
+
+function completionRate(draft: DraftState) {
+  const values = Object.values(draft);
+  const completed = values.filter(value => String(value).trim().length > 0).length;
+  return Math.round((completed / values.length) * 100);
+}
+
+function buildMissingItems(draft: DraftState, product: string, vmComponentConfigs: VmComponentConfigState) {
+  const items: string[] = [];
+  if (!draft.systemName.trim()) items.push('系统名称');
+  if (product === 'vm') {
+    if (!draft.systemCode.trim()) items.push('系统编号');
+    if (!draft.moduleName.trim()) items.push('模块名称');
+    if (!draft.owner.trim()) items.push('担当');
+    if (!draft.userRequirementBackground.trim()) items.push('背景');
+    if (!draft.userRequirementUsers.trim()) items.push('用户相关');
+    if (!draft.userRequirementOps.trim()) items.push('运维与安全要求');
+    if (!draft.userRequirementCloud.trim()) items.push('云服务与资源诉求');
+    if (!draft.userRequirementNetwork.trim()) items.push('网络需求');
+    if (!draft.vmResourceMode.trim()) items.push('虚拟机申请模式');
+    if (!draft.vmDeploymentMode.trim()) items.push('部署方式');
+    if (!draft.vmSpecProfile.trim()) items.push('规格档位');
+    if (!draft.vmQuantity.trim()) items.push('申请数量');
+    if (!draft.vmDiskType.trim()) items.push('磁盘类型');
+    if (!draft.vmSystemDisk.trim()) items.push('系统盘');
+    if (!draft.vmDataDisk.trim()) items.push('数据盘');
+    const selectedComponents = draft.vmComponentSelection
+      .split('、')
+      .map(item => item.trim())
+      .filter(Boolean);
+    if (shouldShowVmComponents(draft.vmResourceMode) && selectedComponents.length === 0) {
+      items.push('组件能力选择');
+    }
+    selectedComponents.forEach(component => {
+      const config = vmComponentConfigs[component];
+      if (!config?.deploymentMode.trim()) items.push(`${component} 部署方式`);
+      if (!config?.specProfile.trim()) items.push(`${component} 规格档位`);
+      if (!config?.configLabel.trim()) items.push(`${component} 配置名称`);
+      if (!config?.nodeCount.trim()) items.push(`${component} 节点数`);
+    });
+    return items;
+  }
+
+  if (!draft.applicationName.trim()) items.push('应用名称');
+  if (!draft.clientType.trim()) items.push('访问终端');
+  if (!draft.businessGoal.trim()) items.push('业务目标');
+  if (!draft.integrationSystems.trim()) items.push('对接系统');
+  if (!draft.accessScope.trim()) items.push('访问与网络边界');
+  if (!draft.resourceNeed.trim()) items.push('资源诉求');
+  if (!draft.slaRequirement.trim()) items.push('SLA / 安全 / 容灾要求');
+  if (!draft.architectureNote.trim()) items.push('架构材料说明');
+  return items;
+}
+
+function buildStructuredResults(draft: DraftState, product: string, vmComponentConfigs: VmComponentConfigState) {
+  if (product === 'vm') {
+    const baseResults = [
+      { field: 'systemCode' as DraftField, label: '系统编号', value: draft.systemCode, placeholder: '待补充系统编号' },
+      { field: 'moduleName' as DraftField, label: '模块名称', value: draft.moduleName, placeholder: '待补充模块名称' },
+      { field: 'systemName' as DraftField, label: '系统名称', value: draft.systemName, placeholder: '待补充系统名称' },
+      { field: 'owner' as DraftField, label: '担当', value: draft.owner, placeholder: '待补充担当' },
+      { field: 'environment' as DraftField, label: '申请环境', value: draft.environment, placeholder: '待补充申请环境' },
+      { field: 'userRequirementBackground' as DraftField, label: '背景', value: draft.userRequirementBackground, placeholder: '待补充背景说明' },
+      { field: 'userRequirementUsers' as DraftField, label: '用户相关', value: draft.userRequirementUsers, placeholder: '待补充用户相关说明' },
+      { field: 'userRequirementOps' as DraftField, label: '运维与安全要求', value: draft.userRequirementOps, placeholder: '待补充运维与安全要求' },
+      { field: 'userRequirementCloud' as DraftField, label: '云服务与资源诉求', value: draft.userRequirementCloud, placeholder: '待补充云服务与资源诉求' },
+      { field: 'userRequirementNetwork' as DraftField, label: '网络需求', value: draft.userRequirementNetwork, placeholder: '待补充网络需求' },
+      { field: 'vmResourceMode' as DraftField, label: '申请模式', value: draft.vmResourceMode, placeholder: '待补充虚拟机申请模式' },
+      { field: 'vmDeploymentMode' as DraftField, label: '虚拟机部署方式', value: draft.vmDeploymentMode, placeholder: '待补充单机或集群部署方式' },
+      { field: 'vmComponentSelection' as DraftField, label: '组件能力选择', value: draft.vmComponentSelection, placeholder: '待补充组件能力选择' },
+      { field: 'vmSpecProfile' as DraftField, label: '虚拟机规格档位', value: draft.vmSpecProfile, placeholder: '待补充规格档位' },
+      { field: 'vmQuantity' as DraftField, label: '申请数量', value: draft.vmQuantity, placeholder: '待补充申请数量' },
+      { field: 'vmDiskType' as DraftField, label: '虚拟机磁盘类型', value: draft.vmDiskType, placeholder: '待补充磁盘类型' },
+      { field: 'vmSystemDisk' as DraftField, label: '虚拟机系统盘', value: draft.vmSystemDisk, placeholder: '待补充系统盘' },
+      { field: 'vmDataDisk' as DraftField, label: '虚拟机数据盘', value: draft.vmDataDisk, placeholder: '待补充数据盘' },
+      { field: 'vmConfigReference' as DraftField, label: '虚拟机配置参考', value: draft.vmConfigReference, placeholder: '待生成配置参考' },
+    ];
+
+    const componentResults = draft.vmComponentSelection
+      .split('、')
+      .map(item => item.trim())
+      .filter(Boolean)
+      .map(component => {
+        const config = vmComponentConfigs[component];
+        return {
+          field: 'vmComponentSelection' as DraftField,
+          label: `${component} 配置`,
+          value: config
+            ? [
+                config.deploymentMode ? `部署：${config.deploymentMode}` : '',
+                config.configLabel ? `配置：${config.configLabel}` : '',
+                config.specProfile ? `规格：${config.specProfile}` : '',
+                config.nodeCount ? `节点：${config.nodeCount}` : '',
+                config.cpu ? `CPU：${config.cpu}` : '',
+                config.memory ? `内存：${config.memory}` : '',
+              ]
+                .filter(Boolean)
+                .join(' · ')
+            : '',
+          placeholder: `待补充 ${component} 的部署方式和规格配置`,
+        };
+      });
+
+    return [...baseResults, ...componentResults];
+  }
+
+  return [
+    { field: 'systemName' as DraftField, label: '系统名称', value: draft.systemName, placeholder: '待补充系统名称' },
+    { field: 'applicationName' as DraftField, label: '应用名称', value: draft.applicationName, placeholder: '待补充应用名称' },
+    { field: 'environment' as DraftField, label: '申请环境', value: draft.environment, placeholder: '待补充申请环境' },
+    { field: 'userType' as DraftField, label: '使用对象', value: draft.userType, placeholder: '待识别使用对象' },
+    { field: 'appType' as DraftField, label: '应用形态', value: draft.appType, placeholder: '待识别应用形态' },
+    { field: 'clientType' as DraftField, label: '访问终端', value: draft.clientType, placeholder: '待识别访问终端' },
+    { field: 'businessGoal' as DraftField, label: '业务目标', value: draft.businessGoal, placeholder: '待补充业务目标' },
+    { field: 'integrationSystems' as DraftField, label: '对接系统', value: draft.integrationSystems, placeholder: '待补充上下游系统' },
+    { field: 'accessScope' as DraftField, label: '访问与网络', value: draft.accessScope, placeholder: '待补充公网/内网和互访边界' },
+    { field: 'resourceNeed' as DraftField, label: '资源诉求', value: draft.resourceNeed, placeholder: '待补充资源需求' },
+    { field: 'vmResourceMode' as DraftField, label: '虚拟机申请模式', value: draft.vmResourceMode, placeholder: '待补充虚拟机申请模式' },
+    { field: 'vmDeploymentMode' as DraftField, label: '部署方式', value: draft.vmDeploymentMode, placeholder: '待补充单机或集群部署方式' },
+    { field: 'vmComponentSelection' as DraftField, label: '组件能力选择', value: draft.vmComponentSelection, placeholder: '待补充组件能力选择' },
+    { field: 'vmSpecProfile' as DraftField, label: '规格档位', value: draft.vmSpecProfile, placeholder: '待补充规格档位' },
+    { field: 'vmQuantity' as DraftField, label: '申请数量', value: draft.vmQuantity, placeholder: '待补充申请数量' },
+    { field: 'vmDiskType' as DraftField, label: '磁盘类型', value: draft.vmDiskType, placeholder: '待补充磁盘类型' },
+    { field: 'vmSystemDisk' as DraftField, label: '系统盘', value: draft.vmSystemDisk, placeholder: '待补充系统盘' },
+    { field: 'vmDataDisk' as DraftField, label: '数据盘', value: draft.vmDataDisk, placeholder: '待补充数据盘' },
+    { field: 'vmConfigReference' as DraftField, label: '配置参考', value: draft.vmConfigReference, placeholder: '待生成配置参考' },
+    { field: 'slaRequirement' as DraftField, label: 'SLA / 安全 / 容灾', value: draft.slaRequirement, placeholder: '待补充 SLA 与安全要求' },
+    { field: 'architectureNote' as DraftField, label: '架构材料说明', value: draft.architectureNote, placeholder: '待补充架构图或附件说明' },
+  ];
+}
+
+function applyKeywordInference(input: string, current: DraftState) {
+  const normalized = input.trim();
+  if (!normalized) return current;
+  const nextDraft = { ...current };
+
+  keywordMappings.forEach(mapping => {
+    if (mapping.pattern.test(normalized)) {
+      Object.entries(mapping.patch).forEach(([key, value]) => {
+        const typedKey = key as keyof DraftState;
+        if (!nextDraft[typedKey].trim()) nextDraft[typedKey] = value;
+      });
+    }
+  });
+
+  const systemNameMatch =
+    normalized.match(/(?:系统名称|系统|平台)[:：]\s*([^\s，。,；;]+)/i) ||
+    normalized.match(/为\s*([^\s，。,；;]+?(?:系统|平台|门户|中心))/i);
+  if (!nextDraft.systemName.trim() && systemNameMatch?.[1]) {
+    nextDraft.systemName = systemNameMatch[1].trim();
+  }
+
+  const appNameMatch =
+    normalized.match(/(?:应用名称|应用|模块|前台|后台)[:：]\s*([^\s，。,；;]+)/i) ||
+    normalized.match(/([^\s，。,；;]+?(?:前台|后台|门户|服务))/i);
+  if (!nextDraft.applicationName.trim() && appNameMatch?.[1]) {
+    nextDraft.applicationName = appNameMatch[1].trim();
+  }
+
+  if (!nextDraft.accessScope.trim()) {
+    if (/仅?内网|内网访问|办公网/i.test(normalized)) nextDraft.accessScope = '仅内网访问';
+    if (/公网|外网|域名|互联网/i.test(normalized)) nextDraft.accessScope = '可能需要公网访问';
+    if (/互访|联调|上下游|白名单|专线/i.test(normalized)) nextDraft.accessScope = '需要系统互访 / 上下游联调';
+  }
+
+  if (!nextDraft.resourceNeed.trim()) {
+    if (/mysql|redis|数据库|缓存|中间件|mq/i.test(normalized)) nextDraft.resourceNeed = '数据库 / 缓存 / 中间件';
+    else if (/域名|负载均衡|lb|waf|发布|网关/i.test(normalized)) nextDraft.resourceNeed = '网络发布 / 域名 / 负载均衡';
+    else if (/云主机|虚机|主机|服务器/i.test(normalized)) nextDraft.resourceNeed = '云主机 / 计算资源';
+    else if (/容器|k8s|集群|运行环境|部署环境/i.test(normalized)) nextDraft.resourceNeed = '容器 / 运行环境';
+  }
+
+  if (!nextDraft.clientType.trim()) {
+    if (/pc|浏览器|web/i.test(normalized) && /h5|移动端|app|小程序/i.test(normalized)) nextDraft.clientType = '多终端混合';
+    else if (/pc|浏览器|web/i.test(normalized)) nextDraft.clientType = 'PC Web';
+    else if (/h5|移动端|app|小程序/i.test(normalized)) nextDraft.clientType = 'H5 / 移动端';
+    else if (/api|接口|调用/i.test(normalized)) nextDraft.clientType = 'API 调用';
+  }
+
+  if (!nextDraft.appType.trim()) {
+    if (/门户|web|网站|前台/i.test(normalized)) nextDraft.appType = '门户 / Web 应用';
+    else if (/api|接口|服务/i.test(normalized)) nextDraft.appType = 'API 服务';
+    else if (/报表|数据|分析/i.test(normalized)) nextDraft.appType = '数据服务 / 报表';
+  }
+
+  if (!nextDraft.integrationSystems.trim()) {
+    const integrationMatch = normalized.match(/(?:对接|接入|调用|依赖)([^。；;]+)/i);
+    if (integrationMatch?.[0]) nextDraft.integrationSystems = integrationMatch[0].trim();
+    else if (/认证|网关|订单中心|短信|报表|中台/i.test(normalized)) nextDraft.integrationSystems = normalized;
+  }
+
+  if (!nextDraft.businessGoal.trim() && normalized.length >= 12) nextDraft.businessGoal = normalized;
+
+  if (!nextDraft.architectureNote.trim() && /架构图|拓扑|链路|部署图|流程图/i.test(normalized)) {
+    nextDraft.architectureNote = normalized;
+  }
+
+  return nextDraft;
+}
+
+function normalizeDraft(input?: Partial<DraftState> | null): DraftState {
+  return {
+    ...defaultDraft,
+    ...input,
+    systemCode: input?.systemCode || '',
+    moduleName: input?.moduleName || '',
+    owner: input?.owner || '',
+    userRequirementBackground: input?.userRequirementBackground || '',
+    userRequirementUsers: input?.userRequirementUsers || '',
+    userRequirementOps: input?.userRequirementOps || '',
+    userRequirementCloud: input?.userRequirementCloud || '',
+    userRequirementNetwork: input?.userRequirementNetwork || '',
+    vmResourceMode: input?.vmResourceMode || '',
+    vmDeploymentMode: input?.vmDeploymentMode || '',
+    vmComponentSelection: input?.vmComponentSelection || '',
+    vmSpecProfile: input?.vmSpecProfile || '',
+    vmQuantity: input?.vmQuantity || '',
+    vmDiskType: input?.vmDiskType || '',
+    vmSystemDisk: input?.vmSystemDisk || '',
+    vmDataDisk: input?.vmDataDisk || '',
+    vmConfigReference: input?.vmConfigReference || '',
+    vmComponentConfigs: input?.vmComponentConfigs || '',
+  };
+}
+
+function shouldShowVmComponents(mode: string) {
+  return mode.includes('组件组合') || mode.includes('综合一体');
+}
+
+function parseVmComponentConfigs(raw: string): VmComponentConfigState {
+  if (!raw.trim()) return {};
+  try {
+    return JSON.parse(raw) as VmComponentConfigState;
+  } catch {
+    return {};
+  }
+}
+
+function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [mode, setMode] = useState<WorkbenchMode>(initialMode);
+  const [draft, setDraft] = useState<DraftState>(defaultDraft);
+  const [vmComponentConfigs, setVmComponentConfigs] = useState<VmComponentConfigState>({});
+  const [cardInputs, setCardInputs] = useState<Record<string, string>>({});
+  const [freeInput, setFreeInput] = useState<FreeInputState>({ sceneDescription: '' });
+  const [highlightedFields, setHighlightedFields] = useState<DraftField[]>([]);
+  const [activeRecordId, setActiveRecordId] = useState<string | null>(null);
+  const [saveNotice, setSaveNotice] = useState('');
+  const [collapsedRequirementCategories, setCollapsedRequirementCategories] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    vmRequirementCategories.forEach(category => {
+      if (category.id !== 'background') initial[category.id] = true;
+    });
+    return initial;
+  });
+  const [requirementCollapsed, setRequirementCollapsed] = useState(false);
+  const [requirementAnswers, setRequirementAnswers] = useState<Record<string, string>>({});
+  const [vmSceneDescription, setVmSceneDescription] = useState('');
+  const [vmWizardStep, setVmWizardStep] = useState(0);
+  const [vmBaseConfigCollapsed, setVmBaseConfigCollapsed] = useState(false);
+  const [collapsedVmComponents, setCollapsedVmComponents] = useState<Record<string, boolean>>({});
+  const [showWorkflowHint, setShowWorkflowHint] = useState(false);
+  const product = searchParams.get('product') || '';
+
+  const getRequirementKey = (categoryId: string, projectId: string) => `${categoryId}/${projectId}`;
+
+  const productMeta = {
+    vm: { title: '虚拟机申请', hint: '这里会继续帮你确认环境、部署方式、是否需要数据库或中间件，以及配置参考。' },
+    container: { title: '容器申请', hint: '这里会继续确认实例数量、CPU、内存和应用基础信息。' },
+    obs: { title: 'OBS 申请', hint: '这里会继续确认桶、目录、容量和使用周期等信息。' },
+    sfs: { title: 'SFS 申请', hint: '这里会继续确认文件存储名称、容量和使用周期。' },
+    permission: { title: '用户权限申请', hint: '这里会继续确认账号信息、联系人和权限范围。' },
+    network: { title: '网络策略申请', hint: '这里会继续确认源目标地址、端口和开通原因。' },
+  } as const;
+
+  const currentProduct = productMeta[product as keyof typeof productMeta] || null;
+  const isVmProduct = product === 'vm';
+
+  // 将用户需求区各小项回答同步到 DraftState 对应大字段
+  useEffect(() => {
+    setDraft(current => {
+      const next = { ...current };
+      vmRequirementCategories.forEach(category => {
+        const text = category.projects
+          .map(project => {
+            const answer = requirementAnswers[getRequirementKey(category.id, project.id)] || '';
+            if (!answer.trim()) return '';
+            return `【${project.title}】\n${answer}`;
+          })
+          .filter(Boolean)
+          .join('\n\n');
+        next[category.field] = text;
+      });
+      return next;
+    });
+  }, [requirementAnswers]);
+
+  const modeTheme =
+    mode === 'assistant'
+      ? {
+          shell: 'border-emerald-100 bg-[linear-gradient(180deg,#f0fdf4_0%,#ffffff_100%)]',
+          accentBorder: 'border-emerald-200',
+          accentSoft: 'bg-emerald-50 text-emerald-700',
+          accentText: 'text-emerald-700',
+          contentBorder: 'border-emerald-100',
+          contentBg: 'bg-emerald-50/25',
+          progress: 'bg-emerald-500',
+        }
+      : {
+          shell: 'border-amber-100 bg-[linear-gradient(180deg,#fffbeb_0%,#ffffff_100%)]',
+          accentBorder: 'border-amber-200',
+          accentSoft: 'bg-amber-50 text-amber-700',
+          accentText: 'text-amber-700',
+          contentBorder: 'border-amber-100',
+          contentBg: 'bg-amber-50/25',
+          progress: 'bg-amber-500',
+        };
+  const vmProfiles = vmSpecProfiles[draft.environment as keyof typeof vmSpecProfiles] || vmSpecProfiles.UAT;
+  const currentVmProfile = vmProfiles.find(item => item.key === draft.vmSpecProfile) || null;
+  const vmResourceModeOptions = vmResourceModeOptionsByEnvironment[draft.environment] || vmResourceModeOptionsByEnvironment.UAT;
+
+  useEffect(() => {
+    if (!isVmProduct) return;
+    setDraft(current => {
+      const nextReference = buildVmConfigReference(current);
+      if (nextReference === current.vmConfigReference) return current;
+      return { ...current, vmConfigReference: nextReference };
+    });
+  }, [draft.environment, draft.vmSpecProfile, isVmProduct]);
+
+  useEffect(() => {
+    if (!isVmProduct) return;
+    setDraft(current => {
+      const nextMode = vmResourceModeOptionsByEnvironment[current.environment]?.[0] || '';
+      const shouldResetMode = current.vmResourceMode && vmResourceModeOptionsByEnvironment[current.environment] && !vmResourceModeOptionsByEnvironment[current.environment].includes(current.vmResourceMode);
+      if (!shouldResetMode && current.vmResourceMode) return current;
+      return {
+        ...current,
+        vmResourceMode: current.vmResourceMode && !shouldResetMode ? current.vmResourceMode : nextMode,
+        vmComponentSelection: nextMode.includes('仅申请虚拟机裸机资源') ? '' : current.vmComponentSelection,
+      };
+    });
+    if (draft.environment === 'SIT') {
+      setVmComponentConfigs({});
+    }
+  }, [draft.environment, isVmProduct]);
+
+  useEffect(() => {
+    const sourceId = searchParams.get('sourceId');
+    const action = searchParams.get('action');
+    if (!sourceId || !action) return;
+
+    const record = getRequestRecord(sourceId);
+    if (!record) return;
+
+    setDraft(normalizeDraft(record.draft));
+    setVmComponentConfigs(parseVmComponentConfigs(record.draft.vmComponentConfigs || ''));
+    setRequirementAnswers(parseRequirementAnswersFromDraft(record.draft));
+    setMode(record.mode);
+    setActiveRecordId(action === 'edit' ? record.id : null);
+    setCardInputs({});
+    setFreeInput({ sceneDescription: '' });
+    setCollapsedVmComponents({});
+  }, [searchParams]);
+
+  useEffect(() => {
+    setVmWizardStep(0);
+  }, [mode]);
+
+  // 引导模式下只展示当前步骤；进入申请信息阶段后不再展示需求说明
+  useEffect(() => {
+    if (mode !== 'assistant') return;
+    const activeCategoryId = vmWizardSteps[vmWizardStep]?.categoryId;
+    setCollapsedRequirementCategories(current => {
+      const next: Record<string, boolean> = {};
+      vmRequirementCategories.forEach(category => {
+        next[category.id] = category.id !== activeCategoryId;
+      });
+      return next;
+    });
+  }, [mode, vmWizardStep]);
+
+  const progress = useMemo(() => completionRate(draft), [draft]);
+  const suggestions = useMemo(() => buildAssistantSummary(draft), [draft]);
+  const missingItems = useMemo(() => buildMissingItems(draft, product, vmComponentConfigs), [draft, product, vmComponentConfigs]);
+  const structuredResults = useMemo(() => buildStructuredResults(draft, product, vmComponentConfigs), [draft, product, vmComponentConfigs]);
+
+  const markFieldsUpdated = (fields: DraftField[]) => {
+    const nextFields = Array.from(new Set(fields.filter(Boolean)));
+    if (nextFields.length === 0) return;
+    setHighlightedFields(nextFields);
+    window.setTimeout(() => {
+      setHighlightedFields(current => current.filter(field => !nextFields.includes(field)));
+    }, 1800);
+  };
+
+  const updateDraft = (key: DraftField, value: string) => {
+    setDraft(current => ({ ...current, [key]: value }));
+    markFieldsUpdated([key]);
+  };
+
+  const applyInferenceWithTracking = (input: string, seed: DraftState) => {
+    const nextDraft = applyKeywordInference(input, seed);
+    const changedFields = (Object.keys(nextDraft) as DraftField[]).filter(field => nextDraft[field] !== seed[field]);
+    return { nextDraft, changedFields };
+  };
+
+  const handleKeywordAssist = (card: GuideCard) => {
+    const rawInput = cardInputs[card.id]?.trim() || '';
+    if (!rawInput) return;
+    setDraft(current => {
+      const seedDraft = { ...current, [card.field]: current[card.field].trim() ? current[card.field] : rawInput };
+      const { nextDraft, changedFields } = applyInferenceWithTracking(rawInput, seedDraft);
+      markFieldsUpdated([card.field, ...changedFields]);
+      return nextDraft;
+    });
+  };
+
+  const handleSaveRequestRecord = () => {
+    const saved = saveRequestRecord({
+      id: activeRecordId || undefined,
+      mode,
+      draft: {
+        ...draft,
+        vmComponentConfigs: JSON.stringify(vmComponentConfigs),
+      } as RequestRecordDraftPayload,
+    });
+    setActiveRecordId(saved.id);
+    setSaveNotice(`已保存申请单 ${saved.id}`);
+    window.setTimeout(() => navigate('/request-records'), 600);
+  };
+
+  const toggleVmComponent = (component: string) => {
+    setDraft(current => {
+      const currentItems = current.vmComponentSelection
+        .split('、')
+        .map(item => item.trim())
+        .filter(Boolean);
+      const nextItems = currentItems.includes(component)
+        ? currentItems.filter(item => item !== component)
+        : [...currentItems, component];
+      return {
+        ...current,
+        vmComponentSelection: nextItems.join('、'),
+      };
+    });
+    setVmComponentConfigs(current => {
+      const next = { ...current };
+      if (next[component]) {
+        delete next[component];
+        return next;
+      }
+      next[component] = {
+        deploymentMode: '',
+        specProfile: '',
+        configLabel: '',
+        cpu: '',
+        memory: '',
+        nodeCount: '',
+        diskType: '',
+        systemDisk: '',
+        dataDisk: '',
+        configReference: '',
+      };
+      return next;
+    });
+    markFieldsUpdated(['vmComponentSelection']);
+  };
+
+  const selectVmProfile = (profileKey: string) => {
+    const selected = vmProfiles.find(item => item.key === profileKey);
+    if (!selected) return;
+    setDraft(current => ({
+      ...current,
+      vmSpecProfile: selected.key,
+      vmDiskType: selected.diskType,
+      vmSystemDisk: selected.systemDisk,
+      vmDataDisk: selected.dataDisk,
+    }));
+    markFieldsUpdated(['vmSpecProfile', 'vmDiskType', 'vmSystemDisk', 'vmDataDisk']);
+  };
+
+  const updateVmComponentConfig = (component: string, patch: Partial<VmComponentConfig>) => {
+    setVmComponentConfigs(current => {
+      const seed = current[component] || {
+        deploymentMode: '',
+        specProfile: '',
+        configLabel: '',
+        cpu: '',
+        memory: '',
+        nodeCount: '',
+        diskType: '',
+        systemDisk: '',
+        dataDisk: '',
+        configReference: '',
+      };
+      const nextConfig = { ...seed, ...patch };
+      if (patch.deploymentMode) {
+        nextConfig.specProfile = '';
+        nextConfig.configLabel = '';
+        nextConfig.cpu = '';
+        nextConfig.memory = '';
+        nextConfig.nodeCount = '';
+        nextConfig.diskType = '';
+        nextConfig.systemDisk = '';
+        nextConfig.dataDisk = '';
+        nextConfig.configReference = buildVmComponentReference(component, nextConfig);
+      }
+      if (patch.specProfile) {
+        const selected = getVmComponentProfiles(draft.environment, component, nextConfig.deploymentMode).find(item => item.key === patch.specProfile);
+        if (selected) {
+          nextConfig.configLabel = selected.configLabel;
+          nextConfig.cpu = selected.cpu;
+          nextConfig.memory = selected.memory;
+          nextConfig.nodeCount = selected.nodeCount;
+          nextConfig.diskType = selected.diskType;
+          nextConfig.systemDisk = selected.systemDisk;
+          nextConfig.dataDisk = selected.dataDisk;
+          nextConfig.configReference = buildVmComponentReference(component, {
+            ...nextConfig,
+            specProfile: selected.key,
+            configLabel: selected.configLabel,
+            cpu: selected.cpu,
+            memory: selected.memory,
+            nodeCount: selected.nodeCount,
+            diskType: selected.diskType,
+            systemDisk: selected.systemDisk,
+            dataDisk: selected.dataDisk,
+          });
+        }
+      } else {
+        nextConfig.configReference = buildVmComponentReference(component, nextConfig);
+      }
+      return { ...current, [component]: nextConfig };
+    });
+  };
+
+  const toggleVmComponentCollapsed = (component: string) => {
+    setCollapsedVmComponents(current => ({ ...current, [component]: !current[component] }));
+  };
+
+  const toggleRequirementCategoryCollapsed = (categoryId: string) => {
+    setCollapsedRequirementCategories(current => ({ ...current, [categoryId]: !current[categoryId] }));
+  };
+
+  const updateRequirementAnswer = (categoryId: string, projectId: string, value: string) => {
+    setRequirementAnswers(current => ({ ...current, [getRequirementKey(categoryId, projectId)]: value }));
+  };
+
+  const appendRequirementAnswer = (categoryId: string, projectId: string, option: string) => {
+    setRequirementAnswers(current => {
+      const key = getRequirementKey(categoryId, projectId);
+      const currentValue = current[key] || '';
+      const separator = currentValue.trim() ? '、' : '';
+      return { ...current, [key]: `${currentValue.trim()}${separator}${option}` };
+    });
+  };
+
+  const handleVmSceneInference = () => {
+    const raw = vmSceneDescription.trim();
+    if (!raw) return;
+    const { draftPatch, answersPatch } = applyVmSceneInference(raw, draft.environment);
+    setDraft(current => ({ ...current, ...draftPatch }));
+    setRequirementAnswers(current => ({ ...current, ...answersPatch }));
+    const changedFields = Object.keys(draftPatch).filter(Boolean) as DraftField[];
+    if (changedFields.length > 0) markFieldsUpdated(changedFields);
+    // 自动展开已填充的大类，方便用户确认
+    const changedCategories = new Set<string>();
+    Object.keys(answersPatch).forEach(key => {
+      const [categoryId] = key.split('/');
+      if (categoryId) changedCategories.add(categoryId);
+    });
+    if (changedCategories.size > 0) {
+      setCollapsedRequirementCategories(current => {
+        const next = { ...current };
+        changedCategories.forEach(id => { next[id] = false; });
+        return next;
+      });
+    }
+  };
+
+  const vmWizardSteps = [
+    { title: '背景', categoryId: 'background' },
+    { title: '用户相关', categoryId: 'users' },
+    { title: '运维相关', categoryId: 'ops' },
+    { title: '安全要件', categoryId: 'security' },
+    { title: '云服务提供', categoryId: 'cloud' },
+    { title: '中间件 & 数据库', categoryId: 'middleware' },
+    { title: '服务器基础侧', categoryId: 'server' },
+    { title: '网络需求', categoryId: 'network' },
+    { title: '申请信息', categoryId: null },
+  ];
+
+  const renderRequirementProjects = (category: VmRequirementCategory) => (
+    <div className="mt-3 space-y-3">
+      {category.projects.map(project => (
+        <div key={project.id} className="rounded-2xl bg-slate-50 px-3 py-3">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start">
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium text-slate-800">{project.title}</div>
+              <div className="mt-0.5 text-xs text-slate-500">{project.description}</div>
+              <div className="mt-1.5 flex items-start gap-1 text-xs text-slate-400">
+                <CircleHelp className="mt-0.5 h-3 w-3 shrink-0" />
+                <span>{project.hint}</span>
+              </div>
+              {project.quickOptions.length > 0 && (
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <span className="text-xs text-slate-400">示例，可点击填入：</span>
+                  {project.quickOptions.map(option => (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => appendRequirementAnswer(category.id, project.id, option)}
+                      className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs text-slate-600 hover:border-primary hover:text-primary"
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <Textarea
+              value={requirementAnswers[getRequirementKey(category.id, project.id)] || ''}
+              onChange={event => updateRequirementAnswer(category.id, project.id, event.target.value)}
+              placeholder={`示例：${project.placeholder}`}
+              className="min-h-[72px] bg-white md:w-[45%] md:min-w-[260px]"
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  const renderVmSkeleton = () => (
+    <div className="space-y-4">
+      {mode === 'assistant' && (
+        <div className="rounded-[20px] border border-emerald-200 bg-emerald-50/70 px-4 py-3">
+          <div className="mb-2 flex items-center justify-between text-sm">
+            <span className="font-semibold text-slate-700">
+              当前阶段：{vmWizardStep < 8 ? '1. 需求说明' : '2. 申请信息'}
+            </span>
+            <span className="text-slate-500">
+              {vmWizardStep < 8
+                ? `步骤 ${vmWizardStep + 1} / 8 · ${vmWizardSteps[vmWizardStep]?.title}`
+                : '最终确认 · 申请信息'}
+            </span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-emerald-100">
+            <div
+              className="h-full rounded-full bg-emerald-500 transition-all"
+              style={{ width: `${((vmWizardStep + 1) / vmWizardSteps.length) * 100}%` }}
+            />
+          </div>
+        </div>
+      )}
+      {mode === 'direct' && (
+        <section className="rounded-[20px] border border-slate-200 bg-white px-4 py-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2 text-base font-semibold text-slate-900">
+              <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-slate-900 px-2 text-xs font-semibold text-white">1</span>
+              需求说明
+            </div>
+            <div className="mt-1 text-sm text-slate-500">按用户需求表逐项填写，默认仅展开“背景”，其他大类可点击展开。</div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setRequirementCollapsed(current => !current)}
+            className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+          >
+            {requirementCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+            {requirementCollapsed ? '展开' : '收起'}
+          </button>
+        </div>
+        {!requirementCollapsed && (
+          <div className="mt-4 space-y-3">
+            {(() => {
+              return vmRequirementCategories.map(category => {
+              const isCollapsed = !!collapsedRequirementCategories[category.id];
+              const filledCount = category.projects.filter(project =>
+                (requirementAnswers[getRequirementKey(category.id, project.id)] || '').trim()
+              ).length;
+              return (
+                <div key={category.id} className="rounded-[18px] border border-slate-200 bg-white px-4 py-3">
+                  <button
+                    type="button"
+                    onClick={() => toggleRequirementCategoryCollapsed(category.id)}
+                    className="flex w-full items-center justify-between gap-3 text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-slate-900">{category.title}</span>
+                      <span className="text-xs text-slate-500">{category.description}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {filledCount > 0 && (
+                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                          已填 {filledCount}/{category.projects.length}
+                        </span>
+                      )}
+                      {isCollapsed ? <ChevronDown className="h-4 w-4 text-slate-500" /> : <ChevronUp className="h-4 w-4 text-slate-500" />}
+                    </div>
+                  </button>
+                  {!isCollapsed && renderRequirementProjects(category)}
+                </div>
+              );
+            });
+            })()}
+          </div>
+        )}
+      </section>
+      )}
+
+      {mode === 'assistant' && (
+        <>
+          {vmWizardStep === 0 && (
+            <section className="rounded-[22px] border border-emerald-200 bg-emerald-50/70 px-4 py-4">
+              <div className="flex items-start gap-2">
+                <WandSparkles className="mt-0.5 h-5 w-5 text-emerald-600" />
+                <div>
+                  <h3 className="text-base font-semibold text-slate-900">先描述一下场景</h3>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">用一句话描述申请用途，系统会自动识别环境、规格、资源和网络诉求，并填充到下方对应项中。</p>
+                </div>
+              </div>
+              <div className="mt-4 flex flex-col gap-3 md:flex-row">
+                <Input
+                  value={vmSceneDescription}
+                  onChange={event => setVmSceneDescription(event.target.value)}
+                  placeholder="例如：为经销商门户 UAT 环境申请 2 台 4C8G 云主机，需要 MySQL 和 Redis，供内部员工 + 经销商访问"
+                  className="flex-1 bg-white"
+                />
+                <Button type="button" variant="outline" onClick={handleVmSceneInference}>
+                  <WandSparkles className="mr-1.5 h-4 w-4" />
+                  识别并填充
+                </Button>
+              </div>
+            </section>
+          )}
+          {vmRequirementCategories.map((category, index) => {
+            const isCollapsed = !!collapsedRequirementCategories[category.id];
+            const filledCount = category.projects.filter(project =>
+              (requirementAnswers[getRequirementKey(category.id, project.id)] || '').trim()
+            ).length;
+            return (
+              <section key={category.id} className="rounded-[20px] border border-slate-200 bg-white px-4 py-4">
+                <button
+                  type="button"
+                  onClick={() => toggleRequirementCategoryCollapsed(category.id)}
+                  className="flex w-full items-center justify-between gap-3 text-left"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-slate-900 px-2 text-xs font-semibold text-white">
+                      {index + 1}
+                    </span>
+                    <span className="text-sm font-semibold text-slate-900">{category.title}</span>
+                    <span className="text-xs text-slate-500">{category.description}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {filledCount > 0 && (
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                        已填 {filledCount}/{category.projects.length}
+                      </span>
+                    )}
+                    {vmWizardStep === index && vmWizardStep < 8 && (
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">当前步骤</span>
+                    )}
+                    {isCollapsed ? <ChevronDown className="h-4 w-4 text-slate-500" /> : <ChevronUp className="h-4 w-4 text-slate-500" />}
+                  </div>
+                </button>
+                {!isCollapsed && renderRequirementProjects(category)}
+              </section>
+            );
+          })}
+        </>
+      )}
+
+      {(mode === 'direct' || vmWizardStep === 8) && (
+        <>
+      {mode === 'assistant' && vmWizardStep === 8 && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/50 px-4 py-3 text-sm text-amber-800">
+          当前阶段：2. 申请信息 · 请确认系统编号、规格档位、磁盘配置和组件能力，完成后可保存申请单。
+        </div>
+      )}
+      <section className="rounded-[20px] border border-slate-200 bg-white px-4 py-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2 text-base font-semibold text-slate-900">
+              {mode === 'assistant' ? (
+                <span>确认申请信息</span>
+              ) : (
+                <>
+                  <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-slate-900 px-2 text-xs font-semibold text-white">2</span>
+                  申请信息
+                </>
+              )}
+            </div>
+            <div className="mt-1 text-sm text-slate-500">按环境、模式和组件组合整理资源申请信息。</div>
+          </div>
+        </div>
+        <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <label className="space-y-2">
+            <span className="text-sm font-medium text-slate-700">系统编号</span>
+            <Input value={draft.systemCode} onChange={event => updateDraft('systemCode', event.target.value)} placeholder="例如：DLP-UAT-001" />
+          </label>
+          <label className="space-y-2">
+            <span className="text-sm font-medium text-slate-700">模块名称</span>
+            <Input value={draft.moduleName} onChange={event => updateDraft('moduleName', event.target.value)} placeholder="例如：门户前台" />
+          </label>
+          <label className="space-y-2">
+            <span className="text-sm font-medium text-slate-700">系统名称</span>
+            <Input value={draft.systemName} onChange={event => updateDraft('systemName', event.target.value)} placeholder="例如：经销商门户" />
+          </label>
+          <label className="space-y-2">
+            <span className="text-sm font-medium text-slate-700">担当</span>
+            <Input value={draft.owner} onChange={event => updateDraft('owner', event.target.value)} placeholder="例如：张三" />
+          </label>
+        </div>
+      </section>
+
+      <section className="rounded-[20px] border border-slate-200 bg-white px-4 py-3">
+        <div className="grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)_240px] lg:items-center">
+          <label className="space-y-1.5">
+            <span className="text-sm font-medium text-slate-700">环境</span>
+            <select value={draft.environment} onChange={event => updateDraft('environment', event.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+              {vmEnvironmentOptions.map(option => <option key={option} value={option}>{option}</option>)}
+            </select>
+          </label>
+          <div className="space-y-1.5">
+            <span className="text-sm font-medium text-slate-700">申请模式</span>
+            <div className="flex flex-wrap gap-2">
+              {vmResourceModeOptions.map(option => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => updateDraft('vmResourceMode', option)}
+                  className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                    draft.vmResourceMode === option
+                      ? 'border-primary bg-primary/5 text-primary'
+                      : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-100'
+                  }`}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs leading-5 text-slate-500">
+            {draft.environment === 'SIT' ? 'SIT 仅支持裸机资源申请。' : 'UAT / 压测 / PROD 支持组合部署或综合一体部署。'}
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-[20px] border border-slate-200 bg-white px-4 py-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-base font-semibold text-slate-900">虚拟机底座配置</div>
+            {!vmBaseConfigCollapsed && (
+              <div className="mt-1 text-sm text-slate-500">选择虚拟机规格、数量与磁盘配置。</div>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setVmBaseConfigCollapsed(current => !current)}
+            className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+          >
+            {vmBaseConfigCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+            {vmBaseConfigCollapsed ? '展开' : '收起'}
+          </button>
+        </div>
+        {vmBaseConfigCollapsed ? (
+          <div className="mt-4 rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
+            当前规格：{draft.vmSpecProfile || '未选择'}，数量：{draft.vmQuantity || '未填写'}，磁盘：{draft.vmDiskType || '-'}/{draft.vmSystemDisk || '-'}/{draft.vmDataDisk || '-'}
+          </div>
+        ) : (
+          <div className="mt-3 space-y-4">
+        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px]">
+          <label className="space-y-2">
+            <span className="text-sm font-medium text-slate-700">规格档位</span>
+            <div className="flex flex-wrap gap-2">
+              {vmProfiles.map(option => (
+                <button
+                  key={option.key}
+                  type="button"
+                  onClick={() => selectVmProfile(option.key)}
+                  className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                    draft.vmSpecProfile === option.key
+                      ? 'border-primary bg-primary/5 text-primary'
+                      : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-100'
+                  }`}
+                >
+                  {option.key}
+                </button>
+              ))}
+            </div>
+          </label>
+          <label className="space-y-2">
+            <span className="text-sm font-medium text-slate-700">虚拟机数量</span>
+            <Input value={draft.vmQuantity} onChange={event => updateDraft('vmQuantity', event.target.value)} placeholder="例如：1 台 / 2 台 / 3 节点" />
+          </label>
+        </div>
+        <div className="mt-4 grid gap-4 md:grid-cols-3">
+          <label className="space-y-2">
+            <span className="text-sm font-medium text-slate-700">磁盘类型</span>
+            <Input value={draft.vmDiskType} onChange={event => updateDraft('vmDiskType', event.target.value)} placeholder="例如：高IO / 超高IO" />
+          </label>
+          <label className="space-y-2">
+            <span className="text-sm font-medium text-slate-700">系统盘</span>
+            <Input value={draft.vmSystemDisk} onChange={event => updateDraft('vmSystemDisk', event.target.value)} placeholder="例如：80GB" />
+          </label>
+          <label className="space-y-2">
+            <span className="text-sm font-medium text-slate-700">数据盘</span>
+            <Input value={draft.vmDataDisk} onChange={event => updateDraft('vmDataDisk', event.target.value)} placeholder="例如：200GB" />
+          </label>
+        </div>
+        {currentVmProfile && (
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="text-sm font-semibold text-slate-900">配置详情参考（只读）</div>
+              <div className="text-xs text-slate-400">具体磁盘配置可在上方编辑</div>
+            </div>
+            <div className="mt-2 grid gap-x-4 gap-y-1 md:grid-cols-2">
+              {buildVmProfileDetails(currentVmProfile)
+                .split('\n')
+                .filter(Boolean)
+                .map((line, index) => (
+                  <div key={index} className="truncate">{line}</div>
+                ))}
+            </div>
+          </div>
+        )}
+          </div>
+        )}
+      </section>
+
+      {draft.environment !== 'SIT' && (
+        <section className="rounded-[20px] border border-slate-200 bg-white px-4 py-4">
+          <div className="flex flex-wrap items-center gap-2 text-base font-semibold text-slate-900">
+            <span>组件能力</span>
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">可多选</span>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {vmComponentOptions.map(option => {
+              const selected = draft.vmComponentSelection.split('、').includes(option);
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => toggleVmComponent(option)}
+                  className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                    selected
+                      ? 'border-primary bg-primary/5 text-primary'
+                      : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-100'
+                  }`}
+                >
+                  {option}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {shouldShowVmComponents(draft.vmResourceMode) && draft.vmComponentSelection.split('、').filter(Boolean).map(component => {
+        const config = vmComponentConfigs[component] || {
+          deploymentMode: '',
+          specProfile: '',
+          configLabel: '',
+          cpu: '',
+          memory: '',
+          nodeCount: '',
+          diskType: '',
+          systemDisk: '',
+          dataDisk: '',
+          configReference: '',
+        };
+        const deployments = getVmComponentDeployments(draft.environment, component);
+        const profiles = getVmComponentProfiles(draft.environment, component, config.deploymentMode);
+        const selectedProfile = profiles.find(item => item.key === config.specProfile) || null;
+        const isCollapsed = collapsedVmComponents[component] ?? false;
+
+        return (
+          <section key={component} className="rounded-[20px] border border-slate-200 bg-white px-4 py-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-base font-semibold text-slate-900">{component} 配置</div>
+                <div className="mt-1 text-sm text-slate-500">{config.configReference || `先选择 ${component} 的部署方式和规格档位。`}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => toggleVmComponentCollapsed(component)}
+                className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+              >
+                {isCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                {isCollapsed ? '展开' : '收起'}
+              </button>
+            </div>
+            {!isCollapsed && (
+              <>
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <label className="space-y-2">
+                    <span className="text-sm font-medium text-slate-700">组件部署方式</span>
+                    <div className="flex flex-wrap gap-2">
+                      {deployments.map(option => (
+                        <button
+                          key={`${component}-${option.deploymentMode}`}
+                          type="button"
+                          onClick={() => updateVmComponentConfig(component, { deploymentMode: option.deploymentMode })}
+                          className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                            config.deploymentMode === option.deploymentMode
+                              ? 'border-primary bg-primary/5 text-primary'
+                              : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-100'
+                          }`}
+                        >
+                          {option.deploymentMode}
+                        </button>
+                      ))}
+                    </div>
+                  </label>
+                  <label className="space-y-2">
+                    <span className="text-sm font-medium text-slate-700">规格档位</span>
+                    <div className="flex flex-wrap gap-2">
+                      {profiles.map(option => (
+                        <button
+                          key={`${component}-${config.deploymentMode}-${option.key}`}
+                          type="button"
+                          onClick={() => updateVmComponentConfig(component, { specProfile: option.key })}
+                          className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                            config.specProfile === option.key
+                              ? 'border-primary bg-primary/5 text-primary'
+                              : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-100'
+                          }`}
+                        >
+                          {option.key}
+                        </button>
+                      ))}
+                    </div>
+                  </label>
+                </div>
+                {selectedProfile && (
+                  <div className="mt-4 grid gap-4 md:grid-cols-3">
+                    <label className="space-y-2">
+                      <span className="text-sm font-medium text-slate-700">磁盘类型</span>
+                      <Input value={config.diskType} onChange={event => updateVmComponentConfig(component, { diskType: event.target.value })} />
+                    </label>
+                    <label className="space-y-2">
+                      <span className="text-sm font-medium text-slate-700">系统盘</span>
+                      <Input value={config.systemDisk} onChange={event => updateVmComponentConfig(component, { systemDisk: event.target.value })} />
+                    </label>
+                    <label className="space-y-2">
+                      <span className="text-sm font-medium text-slate-700">数据盘</span>
+                      <Input value={config.dataDisk} onChange={event => updateVmComponentConfig(component, { dataDisk: event.target.value })} />
+                    </label>
+                  </div>
+                )}
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-sm font-semibold text-slate-900">配置详情参考（只读）</div>
+                    <div className="text-xs text-slate-400">具体磁盘配置可在上方编辑</div>
+                  </div>
+                  {selectedProfile ? (
+                    <div className="mt-2 grid gap-x-4 gap-y-1 md:grid-cols-2">
+                      <div className="truncate">配置名称：{selectedProfile.configLabel}</div>
+                      <div className="truncate">节点数：{selectedProfile.nodeCount}</div>
+                      {buildVmProfileDetails(selectedProfile)
+                        .split('\n')
+                        .filter(Boolean)
+                        .map((line, index) => (
+                          <div key={index} className="truncate">{line}</div>
+                        ))}
+                    </div>
+                  ) : (
+                    <div className="mt-2">选择部署方式和规格后，这里自动带出配置详情。</div>
+                  )}
+                </div>
+              </>
+            )}
+          </section>
+        );
+      })}
+        </>
+      )}
+      {mode === 'assistant' && (
+        <div className="flex items-center justify-between gap-3 rounded-[20px] border border-emerald-200 bg-emerald-50/70 px-4 py-3">
+          <button
+            type="button"
+            disabled={vmWizardStep === 0}
+            onClick={() => setVmWizardStep(s => Math.max(0, s - 1))}
+            className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50"
+          >
+            上一步
+          </button>
+          <div className="text-sm text-slate-600">
+            步骤 {vmWizardStep + 1} / {vmWizardSteps.length}
+          </div>
+          <button
+            type="button"
+            disabled={vmWizardStep === vmWizardSteps.length - 1}
+            onClick={() => setVmWizardStep(s => Math.min(vmWizardSteps.length - 1, s + 1))}
+            className="inline-flex items-center rounded-full bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+          >
+            {vmWizardStep === vmWizardSteps.length - 1 ? '完成' : '下一步'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderDirectForm = () => (
+    <div className="space-y-5">
+      {isVmProduct ? (
+        renderVmSkeleton()
+      ) : (
+        <>
+      <section className="rounded-[20px] border border-slate-200 bg-white p-4">
+        <div className="mb-4">
+          <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">基础信息</div>
+          <div className="mt-1 text-base font-semibold text-slate-900">先确认申请主体</div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className="space-y-2"><span className="text-sm font-medium text-slate-700">系统名称</span><Input value={draft.systemName} onChange={event => updateDraft('systemName', event.target.value)} placeholder="例如：经销商服务平台" /></label>
+          <label className="space-y-2"><span className="text-sm font-medium text-slate-700">应用名称</span><Input value={draft.applicationName} onChange={event => updateDraft('applicationName', event.target.value)} placeholder="例如：门户前台" /></label>
+          <label className="space-y-2"><span className="text-sm font-medium text-slate-700">申请环境</span><select value={draft.environment} onChange={event => updateDraft('environment', event.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"><option value="PROD">PROD 生产</option><option value="UAT">UAT 验收</option><option value="SIT">SIT 测试</option><option value="DEV">DEV 开发</option></select></label>
+          <label className="space-y-2">
+            <span className="text-sm font-medium text-slate-700">使用对象</span>
+            <select
+              value={userTypeOptions.includes(draft.userType as typeof userTypeOptions[number]) ? draft.userType : draft.userType ? '其他' : ''}
+              onChange={event => updateDraft('userType', event.target.value === '其他' ? '' : event.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <option value="">请选择使用对象</option>
+              {userTypeOptions.map(option => <option key={option} value={option}>{option}</option>)}
+            </select>
+            {(draft.userType && !userTypeOptions.includes(draft.userType as typeof userTypeOptions[number])) && (
+              <Input value={draft.userType} onChange={event => updateDraft('userType', event.target.value)} placeholder="请输入其他使用对象" />
+            )}
+          </label>
+          <label className="space-y-2 md:col-span-2">
+            <span className="text-sm font-medium text-slate-700">应用形态</span>
+            <select
+              value={appTypeOptions.includes(draft.appType as typeof appTypeOptions[number]) ? draft.appType : draft.appType ? '其他' : ''}
+              onChange={event => updateDraft('appType', event.target.value === '其他' ? '' : event.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <option value="">请选择应用形态</option>
+              {appTypeOptions.map(option => <option key={option} value={option}>{option}</option>)}
+            </select>
+            {(draft.appType && !appTypeOptions.includes(draft.appType as typeof appTypeOptions[number])) && (
+              <Input value={draft.appType} onChange={event => updateDraft('appType', event.target.value)} placeholder="例如：门户 / Web 应用 / API 服务 / 数据服务" />
+            )}
+          </label>
+          <label className="space-y-2 md:col-span-2">
+            <span className="text-sm font-medium text-slate-700">访问终端</span>
+            <select
+              value={clientTypeOptions.includes(draft.clientType as typeof clientTypeOptions[number]) ? draft.clientType : draft.clientType ? '其他' : ''}
+              onChange={event => updateDraft('clientType', event.target.value === '其他' ? '' : event.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <option value="">请选择访问终端</option>
+              {clientTypeOptions.map(option => <option key={option} value={option}>{option}</option>)}
+            </select>
+            {(draft.clientType && !clientTypeOptions.includes(draft.clientType as typeof clientTypeOptions[number])) && (
+              <Input value={draft.clientType} onChange={event => updateDraft('clientType', event.target.value)} placeholder="例如：PC Web / H5 / API 调用 / 多终端" />
+            )}
+          </label>
+        </div>
+      </section>
+
+      <section className="rounded-[20px] border border-slate-200 bg-white p-4">
+        <div className="mb-4">
+          <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">业务与系统</div>
+          <div className="mt-1 text-base font-semibold text-slate-900">补齐业务目标和上下游关系</div>
+        </div>
+        <div className="grid gap-4">
+          <label className="space-y-2"><span className="text-sm font-medium text-slate-700">业务目标</span><Textarea value={draft.businessGoal} onChange={event => updateDraft('businessGoal', event.target.value)} placeholder="说明这次申请要解决什么问题、支撑什么业务场景，以及预期上线目标。" /></label>
+          <label className="space-y-2"><span className="text-sm font-medium text-slate-700">对接系统</span><Textarea value={draft.integrationSystems} onChange={event => updateDraft('integrationSystems', event.target.value)} placeholder="说明上下游系统、统一认证、网关、短信、报表等对接关系。" /></label>
+        </div>
+      </section>
+
+      <section className="rounded-[20px] border border-slate-200 bg-white p-4">
+        <div className="mb-4">
+          <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">网络与资源</div>
+          <div className="mt-1 text-base font-semibold text-slate-900">明确访问边界和资源申请项</div>
+        </div>
+        <div className="grid gap-4">
+          <label className="space-y-2"><span className="text-sm font-medium text-slate-700">访问与网络范围</span><Textarea value={draft.accessScope} onChange={event => updateDraft('accessScope', event.target.value)} placeholder="说明公网访问、域名端口、系统互访和链路边界。" /></label>
+          <label className="space-y-2"><span className="text-sm font-medium text-slate-700">资源诉求</span><Textarea value={draft.resourceNeed} onChange={event => updateDraft('resourceNeed', event.target.value)} placeholder="说明计算、数据库、中间件、缓存和存储等资源需求。" /></label>
+        </div>
+      </section>
+
+      {isVmProduct && renderVmSkeleton()}
+
+      <section className="rounded-[20px] border border-slate-200 bg-white p-4">
+        <div className="mb-4">
+          <div className="text-base font-semibold text-slate-900">评审前补齐安全与附件说明</div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className="space-y-2"><span className="text-sm font-medium text-slate-700">SLA / 安全 / 容灾要求</span><Textarea value={draft.slaRequirement} onChange={event => updateDraft('slaRequirement', event.target.value)} placeholder="说明高可用、备份、安全与容灾要求。" /></label>
+          <label className="space-y-2"><span className="text-sm font-medium text-slate-700">架构材料说明</span><Textarea value={draft.architectureNote} onChange={event => updateDraft('architectureNote', event.target.value)} placeholder="说明已准备的架构图、链路图或附件材料。" /></label>
+        </div>
+      </section>
+        </>
+      )}
+    </div>
+  );
+
+  const renderRightSidebar = () => (
+    <div className={`w-full rounded-[22px] border p-4 shadow-sm md:sticky md:top-6 md:w-[400px] md:shrink-0 md:self-start xl:w-[420px] ${modeTheme.contentBorder} ${modeTheme.contentBg}`}>
+      <div className={`mb-3 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${modeTheme.accentBorder} ${modeTheme.accentSoft}`}>
+        <Sparkles className="h-3.5 w-3.5" />
+        资源申请工作区
+      </div>
+      <div className={`rounded-[20px] border bg-white px-4 py-3 shadow-sm ${modeTheme.contentBorder}`}>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-slate-900">
+            <FileText className="h-5 w-5 text-primary" />
+            <h2 className="text-base font-semibold">结构化结果</h2>
+          </div>
+        </div>
+      </div>
+      <div className={`mt-4 rounded-2xl border bg-white px-4 py-3 ${modeTheme.accentBorder}`}>
+        <div className="flex items-center justify-between text-sm">
+          <span className="font-medium text-slate-700">材料完成度</span>
+          <span className="font-semibold text-slate-900">{progress}%</span>
+        </div>
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
+          <div className={`h-full rounded-full transition-all ${modeTheme.progress}`} style={{ width: `${progress}%` }} />
+        </div>
+      </div>
+      <div className="mt-4 max-h-[860px] space-y-3 overflow-y-auto">
+        <section className={`rounded-[22px] border bg-white px-4 py-4 shadow-sm ${modeTheme.accentBorder}`}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-sm font-semibold text-slate-900">结构化结果</div>
+            <div className="text-[11px] font-medium text-slate-400">右侧主结果区</div>
+          </div>
+          <div className="mt-3 space-y-2">
+            {structuredResults.map(item => {
+              const hasValue = item.value.trim().length > 0;
+              const isHighlighted = highlightedFields.includes(item.field);
+              return (
+                <div
+                  key={item.label}
+                  className={`rounded-2xl border px-4 py-3 ${
+                    isHighlighted
+                      ? `${mode === 'assistant' ? 'border-emerald-300 bg-emerald-50 shadow-[0_0_0_3px_rgba(16,185,129,0.10)]' : 'border-amber-300 bg-amber-50 shadow-[0_0_0_3px_rgba(245,158,11,0.10)]'}`
+                      : hasValue
+                        ? 'border-emerald-200 bg-emerald-50/40'
+                        : 'border-slate-200 bg-white'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
+                      {item.label}
+                    </div>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                        isHighlighted
+                          ? `${mode === 'assistant' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`
+                          : hasValue
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : 'bg-slate-100 text-slate-500'
+                      }`}
+                    >
+                      {isHighlighted ? '刚更新' : hasValue ? '已识别' : '待补充'}
+                    </span>
+                  </div>
+                  <div className={`mt-1 text-sm leading-6 ${hasValue ? 'text-slate-700' : 'text-slate-400'}`}>
+                    {hasValue ? item.value : item.placeholder}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+        <section className={`rounded-[22px] border px-4 py-4 shadow-sm ${mode === 'assistant' ? 'border-emerald-100 bg-emerald-50/50' : 'border-amber-100 bg-amber-50/50'}`}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-sm font-semibold text-slate-900">待补充项</div>
+            <div className="text-[11px] font-medium text-slate-400">直接提示缺口</div>
+          </div>
+          <div className="mt-3 space-y-2">
+            {missingItems.length > 0 ? (
+              missingItems.map(item => (
+                <div key={item} className={`rounded-2xl border bg-white px-3 py-3 text-sm leading-6 ${mode === 'assistant' ? 'border-emerald-100 text-emerald-800' : 'border-amber-100 text-amber-800'}`}>
+                  {item} 尚未补充
+                </div>
+              ))
+            ) : (
+              <div className="rounded-2xl border border-emerald-100 bg-white px-3 py-3 text-sm leading-6 text-emerald-700">
+                当前核心材料已经补齐，可以继续做预览导出。
+              </div>
+            )}
+          </div>
+        </section>
+        <section className="rounded-[22px] border border-slate-200 bg-white px-4 py-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-sm font-semibold text-slate-900">AI 推荐补全</div>
+            <div className="text-[11px] font-medium text-slate-400">辅助判断</div>
+          </div>
+          <div className="mt-3 space-y-2">
+            {suggestions.length > 0 ? (
+              suggestions.map(item => (
+                <div key={item} className="rounded-2xl bg-slate-50 px-3 py-3 text-sm leading-6 text-slate-600">
+                  {item}
+                </div>
+              ))
+            ) : (
+              <div className="rounded-2xl bg-slate-50 px-3 py-3 text-sm leading-6 text-slate-500">
+                先在左侧做几项选择或输入关键字，系统会把场景判断和推荐补全到这里。
+              </div>
+            )}
+          </div>
+        </section>
+        <section className="rounded-[22px] border border-dashed border-slate-200 bg-white px-4 py-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-sm font-semibold text-slate-900">评审摘要预览</div>
+            <div className="text-[11px] font-medium text-slate-400">下沉辅助区</div>
+          </div>
+          <div className="mt-3 rounded-2xl bg-slate-50 px-4 py-4 text-sm leading-7 text-slate-700">
+            {draft.systemName || draft.applicationName ? (
+              <>
+                {isVmProduct ? (
+                  <>
+                    <div>
+                      本次申请系统为 <strong>{draft.systemName || '待补充系统名称'}</strong>，模块为 <strong>{draft.moduleName || '待补充模块名称'}</strong>，担当为 <strong>{draft.owner || '待补充担当'}</strong>。
+                    </div>
+                    <div>
+                      当前申请环境为 <strong>{draft.environment}</strong>，申请模式为 <strong>{draft.vmResourceMode || '待补充申请模式'}</strong>，主机部署方式为 <strong>{draft.vmDeploymentMode || '待补充部署方式'}</strong>。
+                    </div>
+                    <div>虚拟机规格：{draft.vmSpecProfile || '待补充规格档位'}，数量：{draft.vmQuantity || '待补充申请数量'}。</div>
+                    <div>磁盘配置：{draft.vmDiskType || '待补充磁盘类型'} / 系统盘 {draft.vmSystemDisk || '待补充'} / 数据盘 {draft.vmDataDisk || '待补充'}。</div>
+                    <div>组件能力：{draft.vmComponentSelection || '当前未选择组件能力'}。</div>
+                    <div>背景：{draft.userRequirementBackground || '待补充背景说明。'}</div>
+                    <div>用户相关：{draft.userRequirementUsers || '待补充用户相关说明。'}</div>
+                    <div>运维与安全：{draft.userRequirementOps || '待补充运维与安全要求。'}</div>
+                    <div>云服务与资源：{draft.userRequirementCloud || '待补充云服务与资源诉求。'}</div>
+                    <div>网络需求：{draft.userRequirementNetwork || '待补充网络需求。'}</div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      本次申请面向 <strong>{draft.userType || '待确认用户对象'}</strong>，应用形态更接近 <strong>{draft.appType || '待确认应用形态'}</strong>。
+                    </div>
+                    <div>
+                      当前申请环境为 <strong>{draft.environment}</strong>，主要访问终端为 <strong>{draft.clientType || '待确认访问终端'}</strong>。
+                    </div>
+                    <div>业务目标：{draft.businessGoal || '待补充业务目标。'}</div>
+                    <div>对接系统：{draft.integrationSystems || '待补充上下游系统和接口关系。'}</div>
+                    <div>访问与网络：{draft.accessScope || '待补充公网 / 内网、域名端口和互访边界。'}</div>
+                    <div>资源诉求：{draft.resourceNeed || '待补充运行环境、数据库或网络发布等主诉求。'}</div>
+                    <div>SLA / 安全 / 容灾：{draft.slaRequirement || '待补充高可用、备份、安全与容灾要求。'}</div>
+                  </>
+                )}
+              </>
+            ) : (
+              <div>左侧开始补充信息后，这里会生成更接近线下评审材料的结构化摘要。</div>
+            )}
+          </div>
+        </section>
+        <section className="rounded-[22px] border border-dashed border-slate-200 bg-white px-4 py-4">
+          <Button type="button" variant="ghost" size="sm" className="w-full" onClick={() => setDraft(defaultDraft)}>清空表单</Button>
+        </section>
+      </div>
+    </div>
+  );
+
+  return (
+    <section className="rounded-[28px] border border-[#dbe4f0] bg-[linear-gradient(135deg,#f8fbff_0%,#ffffff_42%,#f5f8fc_100%)] p-6 shadow-[0_24px_54px_rgba(15,23,42,0.08)]">
+      <div className="flex flex-col gap-3 border-b border-slate-200 pb-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">{currentProduct?.title || '资源申请工作区'}</h1>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setMode('assistant')}
+                className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors ${
+                  mode === 'assistant'
+                    ? 'border-emerald-400 bg-emerald-100 text-emerald-800 shadow-sm'
+                    : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                <ListChecks className="h-4 w-4" />
+                引导填写
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('direct')}
+                className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors ${
+                  mode === 'direct'
+                    ? 'border-amber-400 bg-amber-100 text-amber-800 shadow-sm'
+                    : 'border-amber-200 bg-amber-50/70 text-amber-700 hover:border-amber-300 hover:bg-amber-100'
+                }`}
+              >
+                <LayoutTemplate className="h-4 w-4" />
+                直接填写
+              </button>
+            </div>
+          </div>
+          <Link
+            to="/common-requests"
+            className="inline-flex items-center rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+          >
+            返回常见资源申请
+          </Link>
+        </div>
+        <div className="text-sm text-slate-600">
+          {mode === 'assistant'
+            ? '当前为引导填写：你已明确资源类型，下面按规格、容量、高可用和评审关注点逐项确认。'
+            : '当前为直接填写：边界已明确，可快速录入全部字段。'}
+        </div>
+      </div>
+
+      {saveNotice && (
+        <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+          {saveNotice}
+        </div>
+      )}
+
+      {mode === 'assistant' ? (
+        <div className="mt-6 flex flex-col gap-6 md:flex-row">
+          <div className={`min-w-0 flex-1 rounded-[22px] border shadow-sm ${modeTheme.contentBorder} ${modeTheme.contentBg}`}>
+            <div className={`border-b px-5 py-3 ${modeTheme.contentBorder}`}>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">填写区</div>
+                  <h2 className="mt-1 text-lg font-semibold text-slate-900">逐项确认</h2>
+                  <div className="mt-1 text-xs text-slate-500">你已明确资源类型，请按规格、容量、高可用和评审关注点逐项确认或补充。</div>
+                </div>
+              </div>
+            </div>
+            <div className="flex min-h-[calc(100vh-360px)] flex-col px-5 py-4">
+              <div className="flex-1 space-y-4">
+              {!isVmProduct && guideCards.map(card => (
+                <section key={card.id} className="rounded-[22px] border border-slate-200 bg-slate-50/70 px-4 py-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-base font-semibold text-slate-900">{card.title}</h3>
+                      <p className="mt-1 text-sm leading-6 text-slate-600">{card.description}</p>
+                    </div>
+                    {draft[card.field] ? (
+                      <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-medium text-emerald-700">已补齐</span>
+                    ) : (
+                      <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-medium text-amber-700">待选择</span>
+                    )}
+                  </div>
+                  {card.type === 'single' && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {card.options?.map(option => (
+                        <button
+                          key={option}
+                          type="button"
+                          onClick={() => updateDraft(card.field, option)}
+                          className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                            draft[card.field] === option
+                              ? 'border-primary bg-primary/5 text-primary'
+                              : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-100'
+                          }`}
+                        >
+                          {option}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {card.type === 'textarea' && <div className="mt-4"><Textarea value={draft[card.field]} onChange={event => updateDraft(card.field, event.target.value)} placeholder={card.placeholder} className="min-h-[110px]" /></div>}
+                  {card.helper && <div className="mt-2 text-xs leading-5 text-slate-500">{card.helper}</div>}
+                  {card.type === 'single' && (
+                    <div className="mt-3 rounded-2xl border border-dashed border-slate-200 bg-white px-3 py-3">
+                      <div className="flex flex-col gap-3 md:flex-row">
+                        <Input value={cardInputs[card.id] ?? ''} onChange={event => setCardInputs(current => ({ ...current, [card.id]: event.target.value }))} placeholder={card.keywordHint} />
+                        <Button type="button" variant="outline" onClick={() => handleKeywordAssist(card)}>关键词识别</Button>
+                      </div>
+                    </div>
+                  )}
+                </section>
+              ))}
+              {!isVmProduct && <section className="rounded-[22px] border border-slate-200 bg-white px-4 py-4">
+                <h3 className="text-base font-semibold text-slate-900">基础信息补充</h3>
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <label className="space-y-2"><span className="text-sm font-medium text-slate-700">系统名称</span><Input value={draft.systemName} onChange={event => updateDraft('systemName', event.target.value)} placeholder="例如：经销商服务平台" /></label>
+                  <label className="space-y-2"><span className="text-sm font-medium text-slate-700">应用名称</span><Input value={draft.applicationName} onChange={event => updateDraft('applicationName', event.target.value)} placeholder="例如：门户前台" /></label>
+                  <label className="space-y-2 md:col-span-2"><span className="text-sm font-medium text-slate-700">申请环境</span><select value={draft.environment} onChange={event => updateDraft('environment', event.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"><option value="PROD">PROD 生产</option><option value="UAT">UAT 验收</option><option value="SIT">SIT 测试</option><option value="DEV">DEV 开发</option></select></label>
+                </div>
+              </section>}
+
+              {isVmProduct && renderVmSkeleton()}
+              </div>
+            </div>
+          </div>
+
+          {renderRightSidebar()}
+        </div>
+      ) : (
+        <div className={`mt-6 rounded-[24px] border p-5 shadow-sm ${modeTheme.shell}`}>
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
+            {renderDirectForm()}
+            {renderRightSidebar()}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-[22px] border border-slate-200 bg-white px-4 py-4 shadow-sm">
+        <div>
+          <div className="text-sm font-semibold text-slate-900">表单操作</div>
+          <div className="mt-1 flex items-center gap-2 text-sm text-slate-500">
+            <button
+              type="button"
+              onClick={() => setShowWorkflowHint(current => !current)}
+              className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-700"
+            >
+              <CircleHelp className="h-3.5 w-3.5" />
+            </button>
+            <span>填写完成后再保存申请单，预览导出将在这里衔接。</span>
+          </div>
+          {showWorkflowHint && (
+            <div className="mt-2 text-xs leading-5 text-slate-400">
+              正式申请、审批与交付流程仍保留在“我的工单”。
+            </div>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" size="sm" className="gap-2" onClick={handleSaveRequestRecord}><Save className="h-4 w-4" />{activeRecordId ? '更新申请单' : '保存申请单'}</Button>
+          <Button type="button" size="sm" variant="outline" disabled>预览导出</Button>
+          <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-500">即将开放</span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export function GuidedWorkbench() {
+  return <Workbench initialMode="assistant" />;
+}
+
+export function DirectWorkbench() {
+  return <Workbench initialMode="direct" />;
+}
