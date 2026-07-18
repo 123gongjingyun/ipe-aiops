@@ -4369,7 +4369,13 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
   const renderVmApplicationInfo = () => (
     <>
       <section className="rounded-[20px] border border-slate-200 bg-white px-4 py-3">
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_240px] lg:items-start">
+        <div className="grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)_240px] lg:items-center">
+          <label className="space-y-1.5">
+            <FieldLabel required>申请环境</FieldLabel>
+            <select value={draft.environment} onChange={event => updateDraft('environment', event.target.value)} className={environmentSelectClass}>
+              {vmEnvironmentOptions.map(option => <option key={option} value={option}>{option}</option>)}
+            </select>
+          </label>
           <div className="space-y-1.5">
             <FieldLabel required>申请模式</FieldLabel>
             <div className="flex flex-wrap gap-2">
@@ -4663,7 +4669,7 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
                 <Input value={draft.owner} onChange={event => updateDraft('owner', event.target.value)} placeholder="例如：张三" />
               </label>
             )}
-            {(product === 'vm' || product === 'container' || product === 'obs' || product === 'sfs' || product === 'network') && (
+            {(product === 'container' || product === 'obs' || product === 'sfs' || product === 'network') && (
               <label className="space-y-2">
                 <FieldLabel required>申请环境</FieldLabel>
                 <select value={draft.environment} onChange={event => updateDraft('environment', event.target.value)} className={environmentSelectClass}>

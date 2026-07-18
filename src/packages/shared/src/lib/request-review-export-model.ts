@@ -250,7 +250,7 @@ function buildApplicationInfoSection(
       title: 'B2 虚拟机底座配置',
       order: 2,
       fields: baseFields.filter(field =>
-        ['vmResourceMode', 'vmDeploymentMode', 'vmSpecProfile', 'vmQuantity', 'vmDiskType', 'vmSystemDisk', 'vmDataDisk', 'vmComponentSelection', 'vmConfigReference'].includes(field.key),
+        ['environment', 'vmResourceMode', 'vmDeploymentMode', 'vmSpecProfile', 'vmQuantity', 'vmDiskType', 'vmSystemDisk', 'vmDataDisk', 'vmComponentSelection', 'vmConfigReference'].includes(field.key),
       ),
     },
   ];

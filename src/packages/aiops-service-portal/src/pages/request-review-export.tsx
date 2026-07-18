@@ -254,7 +254,7 @@ export function RequestReviewExportPage() {
             <p className="mt-2 text-sm leading-6 text-slate-600">
               当前页面用于审阅资源申请材料，内容以填写页确认后的申请信息和评审摘要概览为准。
             </p>
-            <div className="mt-4 grid gap-3 text-sm text-slate-600 md:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-4 grid gap-3 text-sm text-slate-600 md:grid-cols-2 xl:grid-cols-3">
               <div className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-3">
                 <div className="text-xs uppercase tracking-[0.16em] text-slate-400">申请单号</div>
                 <div className="mt-1 font-medium text-slate-800">{model.recordId}</div>
@@ -262,10 +262,6 @@ export function RequestReviewExportPage() {
               <div className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-3">
                 <div className="text-xs uppercase tracking-[0.16em] text-slate-400">阶段</div>
                 <div className="mt-1 font-medium text-slate-800">{model.stage}</div>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-3">
-                <div className="text-xs uppercase tracking-[0.16em] text-slate-400">申请环境</div>
-                <div className="mt-1 font-medium text-slate-800">{model.environment || '未填写'}</div>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-3">
                 <div className="text-xs uppercase tracking-[0.16em] text-slate-400">最近更新时间</div>
