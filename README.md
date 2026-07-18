@@ -113,6 +113,67 @@ npm run dev:center
 npm run test --prefix src
 ```
 
+### Git 版本管理与代码推送
+
+#### 分支与提交规范
+
+- 主分支：`main`
+- 提交信息遵循 `<type>: <subject>` 格式
+  - `feat`：新功能
+  - `fix`：缺陷修复
+  - `docs`：文档更新
+  - `baseline`：基线/快照恢复
+- 关键提交应附带本次改动的范围说明，避免单条提交混合过多无关修改
+
+#### 当前版本状态
+
+- 当前仓库：`project-mywayaiops-refactor-V2`
+- 当前分支：`main`
+- 远程仓库：`git@github.com:123gongjingyun/ipe-aiops.git`
+- 近期关键提交：
+  - `5ecbed9` 申请环境与申请模式同组展示
+  - `c9eb47d` 去掉重复申请环境、系统盘数据盘按配置带出数字
+  - `ae83029` 工作台导出体系与评审材料口径收口
+
+#### 推送方式（SSH）
+
+本仓库使用 SSH 方式推送到 GitHub，需配置专用 SSH key。
+
+已配置的 key：
+
+- 私钥：`~/.ssh/id_ed25519_ipe_aiops`
+- 公钥：`~/.ssh/id_ed25519_ipe_aiops.pub`
+- SSH config Host：`github.com-ipe-aiops`
+
+首次配置或更换机器时：
+
+1. 生成 key（已在本机执行）：
+   ```bash
+   ssh-keygen -t ed25519 -C "ipe-aiops-$(whoami)" -f ~/.ssh/id_ed25519_ipe_aiops -N ""
+   ```
+2. 复制公钥内容：
+   ```bash
+   cat ~/.ssh/id_ed25519_ipe_aiops.pub
+   ```
+3. 打开 https://github.com/settings/keys，点击 **New SSH key**
+4. Title 填 `ipe-aiops-<机器名>`，Key type 选 **Authentication Key**，粘贴公钥后保存
+5. 配置 `~/.ssh/config`：
+   ```text
+   Host github.com-ipe-aiops
+     HostName github.com
+     User git
+     IdentityFile ~/.ssh/id_ed25519_ipe_aiops
+     IdentitiesOnly yes
+   ```
+6. 验证连接：
+   ```bash
+   ssh -T github.com-ipe-aiops
+   ```
+7. 推送：
+   ```bash
+   git push -u origin main
+   ```
+
 ---
 
 ## 四、当前实施边界
