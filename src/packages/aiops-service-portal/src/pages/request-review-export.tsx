@@ -57,11 +57,9 @@ function UserRequirementGroupedRows({
           <div className="divide-y divide-slate-200">
             {group.fields.map(field => (
               <div key={`${field.key}-${field.label}`} className="grid gap-3 px-4 py-2.5 md:grid-cols-[240px_minmax(0,1fr)]">
-                <div className="min-w-0">
-                  <div className="text-sm font-medium leading-5 text-slate-800">{field.label}</div>
-                </div>
+                <div className="min-w-0 text-sm font-medium leading-5 text-slate-800">{field.label}</div>
                 <div className={`whitespace-pre-wrap text-sm leading-5 ${field.empty ? 'text-slate-400' : 'text-slate-700'}`}>
-                  {field.value || field.placeholder}
+                  {(field.value || field.placeholder).replace(/\n+/g, ' ')}
                 </div>
               </div>
             ))}
@@ -89,7 +87,7 @@ function ApplicationInfoGroupedRows({
               <div key={`${field.key}-${field.label}`} className="grid gap-2 px-4 py-2 md:grid-cols-[190px_minmax(0,1fr)]">
                 <div className="text-sm font-medium leading-5 text-slate-800">{field.label}</div>
                 <div className={`whitespace-pre-wrap text-sm leading-5 ${field.empty ? 'text-slate-400' : 'text-slate-700'}`}>
-                  {field.value || field.placeholder}
+                  {(field.value || field.placeholder).replace(/\n+/g, ' ')}
                 </div>
               </div>
             ))}
@@ -266,7 +264,7 @@ export function RequestReviewExportPage() {
                 <div className="mt-1 font-medium text-slate-800">{model.stage}</div>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-3">
-                <div className="text-xs uppercase tracking-[0.16em] text-slate-400">环境</div>
+                <div className="text-xs uppercase tracking-[0.16em] text-slate-400">申请环境</div>
                 <div className="mt-1 font-medium text-slate-800">{model.environment || '未填写'}</div>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-3">

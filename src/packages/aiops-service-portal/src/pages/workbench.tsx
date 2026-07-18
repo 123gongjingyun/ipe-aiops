@@ -4,6 +4,7 @@ import {
   ChevronDown,
   ChevronUp,
   CircleHelp,
+  Download,
   FileText,
   LayoutTemplate,
   ListChecks,
@@ -11,7 +12,23 @@ import {
   Sparkles,
   WandSparkles,
 } from 'lucide-react';
-import { Button, Input, Textarea, getRequestRecord, saveRequestRecord, type RequestRecordDraftPayload } from '@aiops/shared';
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  Textarea,
+  getRequestRecord,
+  markRequestRecordsExported,
+  REQUEST_REQUIREMENT_CATEGORIES,
+  saveRequestRecord,
+  type RequestRecordDraftPayload,
+  type RequestReviewExportValidationResult,
+  validateRequestReviewExportDraft,
+} from '@aiops/shared';
 
 type WorkbenchMode = 'assistant' | 'direct';
 
@@ -115,6 +132,8 @@ type RequirementProject = {
   placeholder: string;
   quickOptions: string[];
   hint: string;
+  allowExplicitNone?: boolean;
+  forbidContainingNoneText?: boolean;
 };
 
 type RequirementCategory = {
@@ -176,6 +195,8 @@ const requirementCategories: RequirementCategory[] = [
         placeholder: '为经销商门户 UAT 环境申请资源，验证登录和订单查询链路。',
         quickOptions: ['新增功能上线', 'UAT 联调', 'SIT 测试', '生产扩容', '压测验证', 'POC 试点'],
         hint: '评审时判断业务优先级、上线计划和资源紧急程度。',
+        allowExplicitNone: false,
+        forbidContainingNoneText: true,
       },
     ],
   },
@@ -224,6 +245,8 @@ const requirementCategories: RequirementCategory[] = [
         placeholder: 'PC Web + H5 混合',
         quickOptions: ['PC Web', 'H5', 'App', '小程序', 'API', '多终端混合'],
         hint: '影响域名发布、认证链路和移动端适配要求。',
+        allowExplicitNone: false,
+        forbidContainingNoneText: true,
       },
       {
         id: 'userRole',
@@ -520,19 +543,83 @@ const requirementCategories: RequirementCategory[] = [
 function parseRequirementAnswersFromDraft(draft: Partial<DraftState>): Record<string, string> {
   const answers: Record<string, string> = {};
   requirementCategories.forEach(category => {
-    const raw = draft[category.field] || '';
+    const raw = getDraftFieldValueForCategory(draft, category);
     if (!raw.trim()) return;
     const blocks = raw.split(/(?=【)/).filter(Boolean);
-    category.projects.forEach((project, index) => {
-      const block = blocks[index];
-      if (!block) return;
-      const content = block.replace(`【${project.title}】`, '').trim();
+    blocks.forEach(block => {
+      const matchedProject = category.projects.find(project => block.startsWith(`【${project.title}】`));
+      if (!matchedProject) return;
+      const content = block.replace(`【${matchedProject.title}】`, '').trim();
       if (content) {
-        answers[`${category.id}/${project.id}`] = content;
+        answers[`${category.id}/${matchedProject.id}`] = content;
       }
     });
   });
   return answers;
+}
+
+function containsStandaloneNoneText(value: string) {
+  return /(^|[\s，。,；;：:（）()【】\[\]、])无($|[\s，。,；;：:（）()【】\[\]、])/.test(value.trim());
+}
+
+function isRequirementAnswerInvalid(project: RequirementProject, value: string) {
+  if (!value.trim()) return false;
+  if (project.allowExplicitNone === false && containsStandaloneNoneText(value)) return true;
+  return false;
+}
+
+function getDraftFieldValueForCategory(
+  draft: Partial<DraftState>,
+  category: RequirementCategory,
+) {
+  if (category.id === 'middleware' || category.id === 'server') {
+    return draft.userRequirementCloud || '';
+  }
+  if (category.id === 'security') {
+    return draft.userRequirementOps || '';
+  }
+  return draft[category.field] || '';
+}
+
+function buildRequirementFieldText(
+  category: RequirementCategory,
+  requirementAnswers: Record<string, string>,
+) {
+  return category.projects
+    .map(project => {
+      const answer = requirementAnswers[`${category.id}/${project.id}`] || '';
+      if (!answer.trim()) return '';
+      return `【${project.title}】\n${answer}`;
+    })
+    .filter(Boolean)
+    .join('\n\n');
+}
+
+function normalizeCapacityValue(value: string) {
+  return value.replace(/[^0-9.]/g, '').trim();
+}
+
+function inferVmDeploymentModeFromRequirementAnswer(value: string) {
+  const normalized = value.trim();
+  if (!normalized) return '';
+  if (/单机|单节点/i.test(normalized)) return '单机部署';
+  if (/集群|双机|主从|多节点|3节点/i.test(normalized)) return '集群部署';
+  return normalized;
+}
+
+function inlineRequirementText(value: string) {
+  const normalized = value.trim();
+  if (!normalized) return '';
+  const sections = normalized.split(/\n(?=【)/).filter(Boolean);
+  if (sections.length === 0) return normalized.replace(/\n+/g, ' ').trim();
+  return sections
+    .map(section => {
+      const match = section.match(/^【([^】]+)】\n?([\s\S]*)$/);
+      if (!match) return section.replace(/\n+/g, ' ').trim();
+      const [, title, content] = match;
+      return `【${title.trim()}】 ${content.replace(/\n+/g, ' ').trim()}`.trim();
+    })
+    .join('；');
 }
 
 function applyVmSceneInference(input: string, currentEnvironment: string) {
@@ -3376,15 +3463,32 @@ function buildAssistantSummary(draft: DraftState) {
   return suggestions;
 }
 
-function completionRate(draft: DraftState) {
-  const values = Object.values(draft);
-  const completed = values.filter(value => String(value).trim().length > 0).length;
-  return Math.round((completed / values.length) * 100);
+function completionRate(draft: DraftState, product: string, vmComponentConfigs: VmComponentConfigState) {
+  const missingCount = buildMissingItems(draft, product, vmComponentConfigs).length;
+  const totalCount = (() => {
+    if (product === 'vm') {
+      let count = 16;
+      const selectedComponents = draft.vmComponentSelection
+        .split('、')
+        .map(item => item.trim())
+        .filter(Boolean);
+      if (shouldShowVmComponents(draft.vmResourceMode) && selectedComponents.length === 0) {
+        count += 1;
+      }
+      count += selectedComponents.length * 4;
+      return count;
+    }
+    return 10;
+  })();
+
+  const completed = Math.max(0, totalCount - missingCount);
+  return Math.round((completed / Math.max(totalCount, 1)) * 100);
 }
 
 function buildMissingItems(draft: DraftState, product: string, vmComponentConfigs: VmComponentConfigState) {
   const items: string[] = [];
   if (product === 'vm') {
+    const resolvedDeploymentMode = inferVmDeploymentModeFromRequirementAnswer(draft.vmDeploymentMode || '');
     if (!draft.systemName.trim()) items.push('系统名称');
     if (!draft.systemCode.trim()) items.push('系统编号');
     if (!draft.moduleName.trim()) items.push('模块名称');
@@ -3395,7 +3499,7 @@ function buildMissingItems(draft: DraftState, product: string, vmComponentConfig
     if (!draft.userRequirementCloud.trim()) items.push('云服务与资源诉求');
     if (!draft.userRequirementNetwork.trim()) items.push('网络需求');
     if (!draft.vmResourceMode.trim()) items.push('虚拟机申请模式');
-    if (!draft.vmDeploymentMode.trim()) items.push('部署方式');
+    if (!resolvedDeploymentMode.trim()) items.push('部署方式');
     if (!draft.vmSpecProfile.trim()) items.push('规格档位');
     if (!draft.vmQuantity.trim()) items.push('申请数量');
     if (!draft.vmDiskType.trim()) items.push('磁盘类型');
@@ -3471,19 +3575,19 @@ function buildMissingItems(draft: DraftState, product: string, vmComponentConfig
 
 function buildStructuredResults(draft: DraftState, product: string, vmComponentConfigs: VmComponentConfigState) {
   if (product === 'vm') {
+    const resolvedDeploymentMode = inferVmDeploymentModeFromRequirementAnswer(draft.vmDeploymentMode || '');
     const baseResults = [
       { field: 'systemCode' as DraftField, label: '系统编号', value: draft.systemCode, placeholder: '待补充系统编号' },
       { field: 'moduleName' as DraftField, label: '模块名称', value: draft.moduleName, placeholder: '待补充模块名称' },
       { field: 'systemName' as DraftField, label: '系统名称', value: draft.systemName, placeholder: '待补充系统名称' },
       { field: 'owner' as DraftField, label: '担当', value: draft.owner, placeholder: '待补充担当' },
-      { field: 'environment' as DraftField, label: '申请环境', value: draft.environment, placeholder: '待补充申请环境' },
       { field: 'userRequirementBackground' as DraftField, label: '背景', value: draft.userRequirementBackground, placeholder: '待补充背景说明' },
       { field: 'userRequirementUsers' as DraftField, label: '用户相关', value: draft.userRequirementUsers, placeholder: '待补充用户相关说明' },
       { field: 'userRequirementOps' as DraftField, label: '运维与安全要求', value: draft.userRequirementOps, placeholder: '待补充运维与安全要求' },
       { field: 'userRequirementCloud' as DraftField, label: '云服务与资源诉求', value: draft.userRequirementCloud, placeholder: '待补充云服务与资源诉求' },
       { field: 'userRequirementNetwork' as DraftField, label: '网络需求', value: draft.userRequirementNetwork, placeholder: '待补充网络需求' },
       { field: 'vmResourceMode' as DraftField, label: '申请模式', value: draft.vmResourceMode, placeholder: '待补充虚拟机申请模式' },
-      { field: 'vmDeploymentMode' as DraftField, label: '虚拟机部署方式', value: draft.vmDeploymentMode, placeholder: '待补充单机或集群部署方式' },
+      { field: 'vmDeploymentMode' as DraftField, label: '部署方式', value: resolvedDeploymentMode, placeholder: '待补充单机或集群部署方式' },
       { field: 'vmComponentSelection' as DraftField, label: '组件能力选择', value: draft.vmComponentSelection, placeholder: '待补充组件能力选择' },
       { field: 'vmSpecProfile' as DraftField, label: '虚拟机规格档位', value: draft.vmSpecProfile, placeholder: '待补充规格档位' },
       { field: 'vmQuantity' as DraftField, label: '申请数量', value: draft.vmQuantity, placeholder: '待补充申请数量' },
@@ -3616,6 +3720,108 @@ function buildStructuredResults(draft: DraftState, product: string, vmComponentC
   return [...visibleCommonResults, ...requirementResults];
 }
 
+function buildWorkbenchReviewSummaryOverview(
+  draft: DraftState,
+  product: string,
+  vmComponentConfigs: VmComponentConfigState,
+) {
+  if (product !== 'vm') {
+    return [
+      '一、总体说明',
+      `1. 本次申请系统为 ${draft.systemName || '待补充系统名称'}，模块为 ${draft.moduleName || '待补充模块名称'}，担当为 ${draft.owner || '待补充担当'}。`,
+      `2. 当前申请环境为 ${draft.environment || '待补充申请环境'}。`,
+      `3. 申请背景为：${draft.userRequirementBackground || '待补充背景说明。'}`,
+      '二、申请信息',
+      `4. 用户相关要求为：${draft.userRequirementUsers || '待补充用户相关说明。'}`,
+      `5. 运维与安全要求为：${draft.userRequirementOps || '待补充运维与安全要求。'}`,
+      `6. 网络需求为：${draft.userRequirementNetwork || '待补充网络需求。'}`,
+    ].join('\n');
+  }
+
+  const selectedComponents = draft.vmComponentSelection
+    .split('、')
+    .map(item => item.trim())
+    .filter(Boolean);
+  const componentSummaries = selectedComponents.map(component => {
+    const config = vmComponentConfigs[component];
+    if (!config) return `${component}：待补充配置`;
+    return [
+      component,
+      config.deploymentMode ? `部署 ${config.deploymentMode}` : '',
+      config.configLabel ? `配置 ${config.configLabel}` : '',
+      config.specProfile ? `规格 ${config.specProfile}` : '',
+      config.nodeCount ? `节点 ${config.nodeCount}` : '',
+    ]
+      .filter(Boolean)
+      .join('，');
+  });
+
+  return [
+    '一、总体说明',
+    `1. 本次申请系统为 ${draft.systemName || '待补充系统名称'}，模块为 ${draft.moduleName || '待补充模块名称'}，担当为 ${draft.owner || '待补充担当'}。`,
+    `2. 当前申请环境为 ${draft.environment || '待补充申请环境'}，申请模式为 ${draft.vmResourceMode || '待补充申请模式'}，主机部署方式为 ${draft.vmDeploymentMode || '待补充部署方式'}。`,
+    `3. 申请背景为：${draft.userRequirementBackground || '待补充背景说明。'}`,
+    '二、资源摘要',
+    `4. 虚拟机规格为 ${draft.vmSpecProfile || '待补充规格档位'}，数量 ${draft.vmQuantity || '待补充申请数量'}，磁盘配置为 ${draft.vmDiskType || '待补充磁盘类型'} / 系统盘 ${draft.vmSystemDisk || '待补充'} / 数据盘 ${draft.vmDataDisk || '待补充'}。`,
+    `5. 组件配置为：${componentSummaries.length > 0 ? componentSummaries.join('；') : '当前未选择组件能力。'}`,
+    `6. 云服务与资源诉求为：${inlineRequirementText(draft.userRequirementCloud) || '待补充云服务与资源诉求。'}`,
+    '三、协同与评审关注点',
+    `7. 用户相关要求为：${inlineRequirementText(draft.userRequirementUsers) || '待补充用户相关说明。'}`,
+    `8. 运维与安全要求为：${inlineRequirementText(draft.userRequirementOps) || '待补充运维与安全要求。'}`,
+    `9. 网络需求为：${inlineRequirementText(draft.userRequirementNetwork) || '待补充网络需求。'}`,
+  ].join('\n');
+}
+
+function buildExportDraftPayload(
+  draft: DraftState,
+  vmComponentConfigs: VmComponentConfigState,
+  requirementAnswers: Record<string, string>,
+): RequestRecordDraftPayload {
+  const categoryTexts = Object.fromEntries(
+    REQUEST_REQUIREMENT_CATEGORIES.map(category => {
+      const text = category.projects
+        .map(project => {
+          const legacyKey = `${category.id}/${project.id}`;
+          const directAnswer = requirementAnswers[legacyKey] || '';
+          if (directAnswer.trim()) {
+            return `【${project.title}】\n${directAnswer}`;
+          }
+
+          const fallbackAnswer = (() => {
+            if (category.id === 'server' && project.id === 'deploy') {
+              return draft.vmDeploymentMode || '';
+            }
+            return '';
+          })();
+
+          if (!fallbackAnswer.trim()) return '';
+          return `【${project.title}】\n${fallbackAnswer}`;
+        })
+        .filter(Boolean)
+        .join('\n\n');
+      return [category.id, text];
+    }),
+  ) as Record<string, string>;
+
+  const inferredDeploymentMode = inferVmDeploymentModeFromRequirementAnswer(
+    requirementAnswers['server/deploy'] || draft.vmDeploymentMode,
+  );
+
+  return {
+    ...draft,
+    userRequirementBackground: categoryTexts.background || draft.userRequirementBackground,
+    userRequirementUsers: categoryTexts.users || draft.userRequirementUsers,
+    userRequirementOps: [categoryTexts.ops, categoryTexts.security].filter(Boolean).join('\n\n') || draft.userRequirementOps,
+    userRequirementCloud: [categoryTexts.cloud, categoryTexts.middleware, categoryTexts.server].filter(Boolean).join('\n\n') || draft.userRequirementCloud,
+    userRequirementCloudService: categoryTexts.cloud || '',
+    userRequirementMiddleware: categoryTexts.middleware || '',
+    userRequirementServer: categoryTexts.server || '',
+    userRequirementNetwork: categoryTexts.network || draft.userRequirementNetwork,
+    vmDeploymentMode: inferredDeploymentMode || draft.vmDeploymentMode,
+    vmComponentConfigs: JSON.stringify(vmComponentConfigs),
+  } as RequestRecordDraftPayload;
+}
+
 function normalizeDraft(input?: Partial<DraftState> | null): DraftState {
   return {
     ...defaultDraft,
@@ -3720,6 +3926,7 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
   const [vmBaseConfigCollapsed, setVmBaseConfigCollapsed] = useState(false);
   const [collapsedVmComponents, setCollapsedVmComponents] = useState<Record<string, boolean>>({});
   const [showWorkflowHint, setShowWorkflowHint] = useState(false);
+  const [exportValidationResult, setExportValidationResult] = useState<RequestReviewExportValidationResult | null>(null);
   const product = searchParams.get('product') || '';
 
   const getRequirementKey = (categoryId: string, projectId: string) => `${categoryId}/${projectId}`;
@@ -3740,17 +3947,14 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
   useEffect(() => {
     setDraft(current => {
       const next = { ...current };
-      requirementCategories.forEach(category => {
-        const text = category.projects
-          .map(project => {
-            const answer = requirementAnswers[getRequirementKey(category.id, project.id)] || '';
-            if (!answer.trim()) return '';
-            return `【${project.title}】\n${answer}`;
-          })
-          .filter(Boolean)
-          .join('\n\n');
-        next[category.field] = text;
-      });
+      const categoryTexts = Object.fromEntries(
+        requirementCategories.map(category => [category.id, buildRequirementFieldText(category, requirementAnswers)]),
+      ) as Record<string, string>;
+      next.userRequirementBackground = categoryTexts.background || '';
+      next.userRequirementUsers = categoryTexts.users || '';
+      next.userRequirementNetwork = categoryTexts.network || '';
+      next.userRequirementOps = [categoryTexts.ops, categoryTexts.security].filter(Boolean).join('\n\n');
+      next.userRequirementCloud = [categoryTexts.cloud, categoryTexts.middleware, categoryTexts.server].filter(Boolean).join('\n\n');
       return next;
     });
   }, [requirementAnswers]);
@@ -3787,6 +3991,17 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
       return { ...current, vmConfigReference: nextReference };
     });
   }, [draft.environment, draft.vmSpecProfile, isVmProduct]);
+
+  useEffect(() => {
+    if (!isVmProduct || draft.vmDeploymentMode.trim()) return;
+    const deployAnswer = requirementAnswers[getRequirementKey('server', 'deploy')] || '';
+    const inferredMode = inferVmDeploymentModeFromRequirementAnswer(deployAnswer);
+    if (!inferredMode) return;
+    setDraft(current => {
+      if (current.vmDeploymentMode.trim()) return current;
+      return { ...current, vmDeploymentMode: inferredMode };
+    });
+  }, [draft.vmDeploymentMode, isVmProduct, requirementAnswers]);
 
   useEffect(() => {
     if (!isVmProduct) return;
@@ -3839,7 +4054,7 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
     setStageOneCollapsed(wizardStep === 8);
   }, [mode, wizardStep]);
 
-  const progress = useMemo(() => completionRate(draft), [draft]);
+  const progress = useMemo(() => completionRate(draft, product, vmComponentConfigs), [draft, product, vmComponentConfigs]);
   const suggestions = useMemo(() => buildAssistantSummary(draft), [draft]);
   const missingItems = useMemo(() => buildMissingItems(draft, product, vmComponentConfigs), [draft, product, vmComponentConfigs]);
   const structuredResults = useMemo(() => buildStructuredResults(draft, product, vmComponentConfigs), [draft, product, vmComponentConfigs]);
@@ -3863,14 +4078,54 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
       id: activeRecordId || undefined,
       product,
       mode,
-      draft: {
-        ...draft,
-        vmComponentConfigs: JSON.stringify(vmComponentConfigs),
-      } as RequestRecordDraftPayload,
+      reviewSummaryOverview: buildWorkbenchReviewSummaryOverview(draft, product, vmComponentConfigs),
+      draft: buildExportDraftPayload(draft, vmComponentConfigs, requirementAnswers),
     });
     setActiveRecordId(saved.id);
     setSaveNotice(`已保存申请单 ${saved.id}`);
     window.setTimeout(() => navigate('/request-records'), 600);
+  };
+
+  const saveCurrentRequestRecord = () => {
+    const saved = saveRequestRecord({
+      id: activeRecordId || undefined,
+      product,
+      mode,
+      reviewSummaryOverview: buildWorkbenchReviewSummaryOverview(draft, product, vmComponentConfigs),
+      draft: buildExportDraftPayload(draft, vmComponentConfigs, requirementAnswers),
+    });
+    setActiveRecordId(saved.id);
+    setSaveNotice(`已保存申请单 ${saved.id}`);
+    return saved;
+  };
+
+  const validateCurrentDraftForExport = () => {
+    const result = validateRequestReviewExportDraft(buildExportDraftPayload(draft, vmComponentConfigs, requirementAnswers));
+    if (!result.ready) {
+      setExportValidationResult(result);
+      return null;
+    }
+    return result;
+  };
+
+  const handleOpenReviewExport = () => {
+    const record = saveCurrentRequestRecord();
+    navigate(`/request-review-export/${record.id}?from=workbench&product=${product || 'vm'}&mode=${mode}`);
+  };
+
+  const handleExportCurrentExcel = async () => {
+    if (!validateCurrentDraftForExport()) return;
+    const record = saveCurrentRequestRecord();
+    const { downloadRequestReviewExcel } = await import('@aiops/shared');
+    await downloadRequestReviewExcel(record);
+    markRequestRecordsExported([record.id]);
+  };
+
+  const handleExportCurrentPdf = () => {
+    if (!validateCurrentDraftForExport()) return;
+    const record = saveCurrentRequestRecord();
+    navigate(`/request-review-export/${record.id}?from=workbench&product=${product || 'vm'}&mode=${mode}&autoExport=pdf`);
+    markRequestRecordsExported([record.id]);
   };
 
   const toggleVmComponent = (component: string) => {
@@ -4078,7 +4333,7 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
               {project.quickOptions.length > 0 && (
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   <span className="text-xs text-slate-400">示例，可点击填入：</span>
-                  {project.quickOptions.map(option => (
+                  {[...project.quickOptions, ...(project.allowExplicitNone === false ? [] : ['无'])].map(option => (
                     <button
                       key={option}
                       type="button"
@@ -4098,6 +4353,11 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
               className="min-h-[72px] bg-white md:w-[45%] md:min-w-[260px]"
             />
           </div>
+          {isRequirementAnswerInvalid(project, requirementAnswers[getRequirementKey(category.id, project.id)] || '') && (
+            <div className="mt-2 text-xs font-medium text-rose-600">
+              该项必须填写具体内容，不可填写“无”。
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -4111,7 +4371,7 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
       <section className="rounded-[20px] border border-slate-200 bg-white px-4 py-3">
         <div className="grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)_240px] lg:items-center">
           <label className="space-y-1.5">
-            <FieldLabel required>环境</FieldLabel>
+            <FieldLabel required>申请环境</FieldLabel>
             <select value={draft.environment} onChange={event => updateDraft('environment', event.target.value)} className={environmentSelectClass}>
               {vmEnvironmentOptions.map(option => <option key={option} value={option}>{option}</option>)}
             </select>
@@ -4192,15 +4452,15 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
             <div className="mt-4 grid gap-4 md:grid-cols-3">
               <label className="space-y-2">
                 <FieldLabel required>磁盘类型</FieldLabel>
-                <Input value={draft.vmDiskType} onChange={event => updateDraft('vmDiskType', event.target.value)} placeholder="例如：高IO / 超高IO" />
+                <Input value={draft.vmDiskType} onChange={event => updateDraft('vmDiskType', event.target.value)} placeholder="由规格档位自动带出，可手动调整" />
               </label>
               <label className="space-y-2">
                 <FieldLabel required>系统盘</FieldLabel>
-                <NumericInput value={draft.vmSystemDisk} onChange={value => updateDraft('vmSystemDisk', value)} unit="GB" min={1} placeholder="例如：80" />
+                <NumericInput value={draft.vmSystemDisk} onChange={value => updateDraft('vmSystemDisk', value)} unit="GB" min={1} placeholder="由规格档位自动带出，可手动调整（GB）" />
               </label>
               <label className="space-y-2">
                 <FieldLabel required>数据盘</FieldLabel>
-                <NumericInput value={draft.vmDataDisk} onChange={value => updateDraft('vmDataDisk', value)} unit="GB" min={1} placeholder="例如：200" />
+                <NumericInput value={draft.vmDataDisk} onChange={value => updateDraft('vmDataDisk', value)} unit="GB" min={1} placeholder="由规格档位自动带出，可手动调整（GB）" />
               </label>
             </div>
             {currentVmProfile && (
@@ -4331,15 +4591,15 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
                   <div className="mt-4 grid gap-4 md:grid-cols-3">
                     <label className="space-y-2">
                       <FieldLabel required>磁盘类型</FieldLabel>
-                      <Input value={config.diskType} onChange={event => updateVmComponentConfig(component, { diskType: event.target.value })} placeholder="例如：高IO / 超高IO" />
+                      <Input value={config.diskType} onChange={event => updateVmComponentConfig(component, { diskType: event.target.value })} placeholder="由规格档位自动带出，可手动调整" />
                     </label>
                     <label className="space-y-2">
                       <FieldLabel required>系统盘</FieldLabel>
-                      <NumericInput value={config.systemDisk} onChange={value => updateVmComponentConfig(component, { systemDisk: value })} unit="GB" min={1} placeholder="例如：80" />
+                      <NumericInput value={config.systemDisk} onChange={value => updateVmComponentConfig(component, { systemDisk: value })} unit="GB" min={1} placeholder="由规格档位自动带出，可手动调整（GB）" />
                     </label>
                     <label className="space-y-2">
                       <FieldLabel required>数据盘</FieldLabel>
-                      <NumericInput value={config.dataDisk} onChange={value => updateVmComponentConfig(component, { dataDisk: value })} unit="GB" min={1} placeholder="例如：200" />
+                      <NumericInput value={config.dataDisk} onChange={value => updateVmComponentConfig(component, { dataDisk: value })} unit="GB" min={1} placeholder="由规格档位自动带出，可手动调整（GB）" />
                     </label>
                   </div>
                 )}
@@ -4692,6 +4952,10 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
         </div>
         {!requirementCollapsed && (
           <div className="mt-4 space-y-3">
+            <div className="rounded-[18px] border border-sky-200 bg-sky-50/70 px-4 py-3 text-sm text-slate-700">
+              <div>说明1：用户背景 和 网络需求-用户访问方式 需要如实填写，不可填写“无”，其他如有需要请项目组侧进行填写，不需要部分请填写“无”； 如有需要网络侧/服务器侧等团队协助请联络窗口。</div>
+              <div className="mt-2">说明2：【重要总原则】需说明每个进入的数据量，经过某个服务的运算，需要什么资源，落到数据库需要什么资源，此思考内容需明确。即什么数据规模与什么基础资源的关系需明确清楚，推算逻辑是什么。</div>
+            </div>
             {(() => {
               return requirementCategories.map(category => {
               const isCollapsed = !!collapsedRequirementCategories[category.id];
@@ -4784,6 +5048,10 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
                 </button>
                 {!stageOneCollapsed && (
                   <div className="mt-4 space-y-3">
+                    <div className="rounded-[18px] border border-sky-200 bg-sky-50/70 px-4 py-3 text-sm text-slate-700">
+                      <div>说明1：用户背景 和 网络需求-用户访问方式 需要如实填写，不可填写“无”，其他如有需要请项目组侧进行填写，不需要部分请填写“无”； 如有需要网络侧/服务器侧等团队协助请联络窗口。</div>
+                      <div className="mt-2">说明2：【重要总原则】需说明每个进入的数据量，经过某个服务的运算，需要什么资源，落到数据库需要什么资源，此思考内容需明确。即什么数据规模与什么基础资源的关系需明确清楚，推算逻辑是什么。</div>
+                    </div>
                     {requirementCategories.map((category, index) => {
                       if (index > wizardStep) return null;
                       const isCollapsed = !!collapsedRequirementCategories[category.id];
@@ -4967,22 +5235,9 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
             {draft.systemName ? (
               <>
                 {isVmProduct ? (
-                  <>
-                    <div>
-                      本次申请系统为 <strong>{draft.systemName || '待补充系统名称'}</strong>，模块为 <strong>{draft.moduleName || '待补充模块名称'}</strong>，担当为 <strong>{draft.owner || '待补充担当'}</strong>。
-                    </div>
-                    <div>
-                      当前申请环境为 <strong>{draft.environment}</strong>，申请模式为 <strong>{draft.vmResourceMode || '待补充申请模式'}</strong>，主机部署方式为 <strong>{draft.vmDeploymentMode || '待补充部署方式'}</strong>。
-                    </div>
-                    <div>虚拟机规格：{draft.vmSpecProfile || '待补充规格档位'}，数量：{draft.vmQuantity || '待补充申请数量'}。</div>
-                    <div>磁盘配置：{draft.vmDiskType || '待补充磁盘类型'} / 系统盘 {draft.vmSystemDisk || '待补充'} / 数据盘 {draft.vmDataDisk || '待补充'}。</div>
-                    <div>组件能力：{draft.vmComponentSelection || '当前未选择组件能力'}。</div>
-                    <div>背景：{draft.userRequirementBackground || '待补充背景说明。'}</div>
-                    <div>用户相关：{draft.userRequirementUsers || '待补充用户相关说明。'}</div>
-                    <div>运维与安全：{draft.userRequirementOps || '待补充运维与安全要求。'}</div>
-                    <div>云服务与资源：{draft.userRequirementCloud || '待补充云服务与资源诉求。'}</div>
-                    <div>网络需求：{draft.userRequirementNetwork || '待补充网络需求。'}</div>
-                  </>
+                  buildWorkbenchReviewSummaryOverview(draft, product, vmComponentConfigs).split('\n').filter(Boolean).map(line => (
+                    <div key={line} className={/^[一二三四五六七八九十]+、/.test(line) ? 'font-semibold text-slate-900' : ''}>{line}</div>
+                  ))
                 ) : (
                   <>
                     <div>
@@ -5145,10 +5400,35 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button type="button" size="sm" className="gap-2" onClick={handleSaveRequestRecord}><Save className="h-4 w-4" />{activeRecordId ? '更新申请单' : '保存申请单'}</Button>
-          <Button type="button" size="sm" variant="outline" disabled>预览导出</Button>
-          <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-500">即将开放</span>
+          <Button type="button" size="sm" variant="outline" className="gap-2" onClick={handleOpenReviewExport}><FileText className="h-4 w-4" />HTML 评审预览</Button>
+          <Button type="button" size="sm" variant="outline" className="gap-2" onClick={handleExportCurrentPdf}><Download className="h-4 w-4" />导出 PDF</Button>
+          <Button type="button" size="sm" variant="outline" className="gap-2" onClick={handleExportCurrentExcel}><Download className="h-4 w-4" />导出 Excel</Button>
         </div>
       </div>
+      <Dialog open={Boolean(exportValidationResult)} onOpenChange={open => { if (!open) setExportValidationResult(null); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>当前申请材料未完成，暂不可导出正式评审材料</DialogTitle>
+            <DialogDescription>
+              HTML 评审预览可以继续查看；请先补齐以下阻断项后，再执行 PDF 或 Excel 导出。
+            </DialogDescription>
+          </DialogHeader>
+          {exportValidationResult && (
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4">
+                <div className="text-sm font-semibold text-rose-800">阻断项</div>
+                <div className="mt-3 space-y-2">
+                  {exportValidationResult.blockingIssues.map(issue => (
+                    <div key={`${issue.level}-${issue.key}`} className="rounded-xl bg-white px-3 py-2 text-sm text-rose-700">
+                      {issue.reason}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

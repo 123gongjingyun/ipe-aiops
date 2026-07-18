@@ -242,7 +242,7 @@ function buildApplicationInfoSection(
       title: 'B1 基础信息',
       order: 1,
       fields: baseFields.filter(field =>
-        ['systemCode', 'systemName', 'moduleName', 'owner', 'environment', 'vmResourceMode', 'vmDeploymentMode'].includes(field.key),
+        ['systemCode', 'systemName', 'moduleName', 'owner'].includes(field.key),
       ),
     },
     {
@@ -250,7 +250,7 @@ function buildApplicationInfoSection(
       title: 'B2 虚拟机底座配置',
       order: 2,
       fields: baseFields.filter(field =>
-        ['vmSpecProfile', 'vmQuantity', 'vmDiskType', 'vmSystemDisk', 'vmDataDisk', 'vmComponentSelection', 'vmConfigReference'].includes(field.key),
+        ['vmResourceMode', 'vmDeploymentMode', 'vmSpecProfile', 'vmQuantity', 'vmDiskType', 'vmSystemDisk', 'vmDataDisk', 'vmComponentSelection', 'vmConfigReference'].includes(field.key),
       ),
     },
   ];
