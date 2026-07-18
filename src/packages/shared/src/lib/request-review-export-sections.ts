@@ -91,8 +91,8 @@ export const APPLICATION_INFO_FIELDS: RequestReviewFieldDefinition[] = [
   { key: 'vmSpecProfile', label: '规格档位', placeholder: '未填写规格档位' },
   { key: 'vmQuantity', label: '数量', placeholder: '未填写数量' },
   { key: 'vmDiskType', label: '磁盘类型', placeholder: '未填写磁盘类型' },
-  { key: 'vmSystemDisk', label: '系统盘', placeholder: '未填写系统盘' },
-  { key: 'vmDataDisk', label: '数据盘', placeholder: '未填写数据盘' },
+  { key: 'vmSystemDisk', label: '系统盘（GB）', placeholder: '未填写系统盘' },
+  { key: 'vmDataDisk', label: '数据盘（GB）', placeholder: '未填写数据盘' },
   { key: 'vmComponentSelection', label: '组件能力选择', placeholder: '未填写组件能力选择' },
   { key: 'vmConfigReference', label: '配置参考', placeholder: '未生成配置参考' },
 ];

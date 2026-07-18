@@ -670,8 +670,8 @@ function applyVmSceneInference(input: string, currentEnvironment: string) {
     const matchedProfile = envProfiles.find(p => p.key === specKey);
     if (matchedProfile) {
       draftPatch.vmDiskType = matchedProfile.diskType;
-      draftPatch.vmSystemDisk = matchedProfile.systemDisk;
-      draftPatch.vmDataDisk = matchedProfile.dataDisk;
+      draftPatch.vmSystemDisk = normalizeCapacityValue(matchedProfile.systemDisk);
+      draftPatch.vmDataDisk = normalizeCapacityValue(matchedProfile.dataDisk);
     }
   }
 
@@ -3356,8 +3356,8 @@ function buildVmConfigReference(draft: DraftState) {
     draft.vmSpecProfile ? `规格：${draft.vmSpecProfile}` : '',
     draft.vmQuantity ? `数量：${draft.vmQuantity}` : '',
     draft.vmDiskType ? `磁盘类型：${draft.vmDiskType}` : '',
-    draft.vmSystemDisk ? `系统盘：${draft.vmSystemDisk}` : '',
-    draft.vmDataDisk ? `数据盘：${draft.vmDataDisk}` : '',
+    draft.vmSystemDisk ? `系统盘：${draft.vmSystemDisk}GB` : '',
+    draft.vmDataDisk ? `数据盘：${draft.vmDataDisk}GB` : '',
     draft.vmComponentSelection ? `组件：${draft.vmComponentSelection}` : '',
   ].filter(Boolean);
 
@@ -3762,7 +3762,7 @@ function buildWorkbenchReviewSummaryOverview(
     `2. 当前申请环境为 ${draft.environment || '待补充申请环境'}，申请模式为 ${draft.vmResourceMode || '待补充申请模式'}，主机部署方式为 ${draft.vmDeploymentMode || '待补充部署方式'}。`,
     `3. 申请背景为：${draft.userRequirementBackground || '待补充背景说明。'}`,
     '二、资源摘要',
-    `4. 虚拟机规格为 ${draft.vmSpecProfile || '待补充规格档位'}，数量 ${draft.vmQuantity || '待补充申请数量'}，磁盘配置为 ${draft.vmDiskType || '待补充磁盘类型'} / 系统盘 ${draft.vmSystemDisk || '待补充'} / 数据盘 ${draft.vmDataDisk || '待补充'}。`,
+    `4. 虚拟机规格为 ${draft.vmSpecProfile || '待补充规格档位'}，数量 ${draft.vmQuantity || '待补充申请数量'}，磁盘配置为 ${draft.vmDiskType || '待补充磁盘类型'} / 系统盘 ${draft.vmSystemDisk ? `${draft.vmSystemDisk}GB` : '待补充'} / 数据盘 ${draft.vmDataDisk ? `${draft.vmDataDisk}GB` : '待补充'}。`,
     `5. 组件配置为：${componentSummaries.length > 0 ? componentSummaries.join('；') : '当前未选择组件能力。'}`,
     `6. 云服务与资源诉求为：${inlineRequirementText(draft.userRequirementCloud) || '待补充云服务与资源诉求。'}`,
     '三、协同与评审关注点',
@@ -4172,8 +4172,8 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
       ...current,
       vmSpecProfile: selected.key,
       vmDiskType: selected.diskType,
-      vmSystemDisk: selected.systemDisk,
-      vmDataDisk: selected.dataDisk,
+      vmSystemDisk: normalizeCapacityValue(selected.systemDisk),
+      vmDataDisk: normalizeCapacityValue(selected.dataDisk),
     }));
     markFieldsUpdated(['vmSpecProfile', 'vmDiskType', 'vmSystemDisk', 'vmDataDisk']);
   };
@@ -4241,8 +4241,8 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
           nextConfig.memory = selected.memory;
           nextConfig.nodeCount = selected.nodeCount;
           nextConfig.diskType = selected.diskType;
-          nextConfig.systemDisk = selected.systemDisk;
-          nextConfig.dataDisk = selected.dataDisk;
+          nextConfig.systemDisk = normalizeCapacityValue(selected.systemDisk);
+          nextConfig.dataDisk = normalizeCapacityValue(selected.dataDisk);
           nextConfig.configReference = buildVmComponentReference(component, {
             ...nextConfig,
             specProfile: selected.key,
@@ -4369,13 +4369,7 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
   const renderVmApplicationInfo = () => (
     <>
       <section className="rounded-[20px] border border-slate-200 bg-white px-4 py-3">
-        <div className="grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)_240px] lg:items-center">
-          <label className="space-y-1.5">
-            <FieldLabel required>申请环境</FieldLabel>
-            <select value={draft.environment} onChange={event => updateDraft('environment', event.target.value)} className={environmentSelectClass}>
-              {vmEnvironmentOptions.map(option => <option key={option} value={option}>{option}</option>)}
-            </select>
-          </label>
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_240px] lg:items-start">
           <div className="space-y-1.5">
             <FieldLabel required>申请模式</FieldLabel>
             <div className="flex flex-wrap gap-2">
@@ -4420,7 +4414,7 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
         </div>
         {vmBaseConfigCollapsed ? (
           <div className="mt-4 rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
-            当前规格：{draft.vmSpecProfile || '未选择'}，数量：{draft.vmQuantity || '未填写'}，磁盘：{draft.vmDiskType || '-'}/{draft.vmSystemDisk || '-'}/{draft.vmDataDisk || '-'}
+            当前规格：{draft.vmSpecProfile || '未选择'}，数量：{draft.vmQuantity || '未填写'}，磁盘：{draft.vmDiskType || '-'}/{draft.vmSystemDisk ? `${draft.vmSystemDisk}GB` : '-'}/{draft.vmDataDisk ? `${draft.vmDataDisk}GB` : '-'}
           </div>
         ) : (
           <div className="mt-3 space-y-4">

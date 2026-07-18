@@ -189,8 +189,8 @@ function buildComponentFields(component: string, config?: VmComponentConfig): Re
     ['cpu', 'CPU', resolved.cpu, `未填写 ${component} CPU`],
     ['memory', '内存', resolved.memory, `未填写 ${component} 内存`],
     ['diskType', '磁盘类型', resolved.diskType, `未填写 ${component} 磁盘类型`],
-    ['systemDisk', '系统盘', resolved.systemDisk, `未填写 ${component} 系统盘`],
-    ['dataDisk', '数据盘', resolved.dataDisk, `未填写 ${component} 数据盘`],
+    ['systemDisk', '系统盘（GB）', resolved.systemDisk, `未填写 ${component} 系统盘`],
+    ['dataDisk', '数据盘（GB）', resolved.dataDisk, `未填写 ${component} 数据盘`],
     ['configReference', '配置参考', resolved.configReference, `未填写 ${component} 配置参考`],
   ];
 
