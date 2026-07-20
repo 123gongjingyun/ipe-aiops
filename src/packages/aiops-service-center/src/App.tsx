@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect } from 'react';
 import { HashRouter, Navigate, Routes, Route } from 'react-router-dom';
-import { initDevConfigRemoteSync } from '@aiops/shared';
+import { initDevConfigRemoteSync, LoginPage, RequireAuth, RequireMenuAccess } from '@aiops/shared';
 import { CenterLayout } from './components/center-layout';
 import { AppErrorBoundary } from './components/app-error-boundary';
 
@@ -60,6 +60,14 @@ export function warmCenterRoute(pathname: string) {
   if (pathname.startsWith('/handbook')) return void loadHandbook();
 }
 
+const CENTER_LOGIN_BRAND = {
+  moduleName: '运营中心',
+  title: '运营中心',
+  subtitle: '登录后继续处理工单、管理交付资产与运维集成',
+  defaultPath: '/',
+  app: 'center',
+} as const;
+
 function RouteFallback() {
   return (
     <div className="min-h-[420px] rounded-2xl border border-slate-200 bg-white/80 p-6">
@@ -111,26 +119,207 @@ function AppContent() {
       <AppErrorBoundary>
         <Suspense fallback={<RouteFallback />}>
           <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/orders" element={<Orders />} />
-            <Route path="/order/:id" element={<OrderDetail />} />
-            <Route path="/matrix" element={<Matrix />} />
-            <Route path="/matrix/:domainKey" element={<MatrixDetailPage />} />
-            <Route path="/help" element={<Help />} />
-            <Route path="/handbook" element={<Handbook />} />
-            <Route path="/service-ledger" element={<ServiceLedger />} />
-            <Route path="/monitoring-center" element={<MonitoringCenterPage />} />
-            <Route path="/ops-management" element={<OpsManagementPage />} />
-            <Route path="/security-ops" element={<SecurityOpsPage />} />
-            <Route path="/fault-handling" element={<FaultHandlingPage />} />
-            <Route path="/dc-facility" element={<DCFacilityPage />} />
-            <Route path="/ai-knowledge" element={<AIKnowledgePage />} />
-            <Route path="/service-catalog" element={<ServiceCatalog />} />
-            <Route path="/service-catalog/sla" element={<SLAManagement />} />
-            <Route path="/service-catalog/flow" element={<ServiceFlow />} />
-            <Route path="/service-catalog/templates" element={<Navigate to="/settings?tab=templates" replace />} />
-            <Route path="/ops-integration" element={<OpsIntegration />} />
-            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/login" element={<LoginPage brand={CENTER_LOGIN_BRAND} />} />
+            <Route
+              path="/"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.center.dashboard">
+                    <Dashboard />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/orders"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.center.orders">
+                    <Orders />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/order/:id"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.center.orders">
+                    <OrderDetail />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/matrix"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.center.matrix">
+                    <Matrix />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/matrix/:domainKey"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.center.matrix">
+                    <MatrixDetailPage />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/help"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.center.help">
+                    <Help />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/handbook"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.center.help">
+                    <Handbook />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/service-ledger"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.center.service-ledger">
+                    <ServiceLedger />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/monitoring-center"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.center.ops-integration">
+                    <MonitoringCenterPage />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/ops-management"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.center.ops-integration">
+                    <OpsManagementPage />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/security-ops"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.center.ops-integration">
+                    <SecurityOpsPage />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/fault-handling"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.center.ops-integration">
+                    <FaultHandlingPage />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/dc-facility"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.center.ops-integration">
+                    <DCFacilityPage />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/ai-knowledge"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.center.ai-knowledge">
+                    <AIKnowledgePage />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/service-catalog"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.center.service-catalog">
+                    <ServiceCatalog />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/service-catalog/sla"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.center.service-catalog">
+                    <SLAManagement />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/service-catalog/flow"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.center.service-catalog">
+                    <ServiceFlow />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/service-catalog/templates"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.center.settings">
+                    <Navigate to="/settings?tab=templates" replace />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/ops-integration"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.center.ops-integration">
+                    <OpsIntegration />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.center.settings">
+                    <SettingsPage />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
           </Routes>
         </Suspense>
       </AppErrorBoundary>
@@ -138,10 +327,12 @@ function AppContent() {
   );
 }
 
-export default function App() {
+function App() {
   return (
     <HashRouter>
       <AppContent />
     </HashRouter>
   );
 }
+
+export default App;

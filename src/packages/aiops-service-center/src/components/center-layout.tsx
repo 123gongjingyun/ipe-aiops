@@ -1,7 +1,7 @@
 import { ReactNode, useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { LayoutDashboard, ClipboardList, Grid3X3, Bell, Search, CircleHelp, BookOpen, Activity, Settings, Shield, AlertTriangle, Server, Brain, ChevronDown, ChevronRight, Layers, Gauge, GitBranch, Menu, X, PanelLeftClose, PanelLeftOpen, User2, KeyRound, LogOut } from 'lucide-react';
-import { DOMAIN_META, getOrders } from '@aiops/shared';
+import { DOMAIN_META, getOrders, useAuth, hasMenuAccess, type CenterMenuKey } from '@aiops/shared';
 import { PLATFORM_BRANDING_EVENT, loadPlatformBranding } from '../lib/platform-branding';
 import { warmCenterRoute } from '../App';
 
@@ -13,7 +13,8 @@ interface MenuItem {
   path?: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
-  children?: { path: string; label: string; icon: React.ComponentType<{ className?: string }> }[];
+  menuKey: CenterMenuKey;
+  children?: { path: string; label: string; icon: React.ComponentType<{ className?: string }>; menuKey: CenterMenuKey }[];
 }
 
 interface Crumb {
@@ -75,22 +76,23 @@ function ModuleSwitcher({ currentKey }: { currentKey: string }) {
 }
 
 const menuItems: MenuItem[] = [
-  { path: '/', label: '仪表板', icon: LayoutDashboard },
-  { path: '/orders', label: '工单管理', icon: ClipboardList },
+  { path: '/', label: '仪表板', icon: LayoutDashboard, menuKey: 'menu.center.dashboard' },
+  { path: '/orders', label: '工单管理', icon: ClipboardList, menuKey: 'menu.center.orders' },
   {
     label: '服务目录',
     icon: BookOpen,
+    menuKey: 'menu.center.service-catalog',
     children: [
-      { path: '/service-catalog', label: '全部服务', icon: Layers },
-      { path: '/service-catalog/sla', label: 'SLA管理', icon: Gauge },
-      { path: '/service-catalog/flow', label: '服务流程', icon: GitBranch },
+      { path: '/service-catalog', label: '全部服务', icon: Layers, menuKey: 'menu.center.service-catalog' },
+      { path: '/service-catalog/sla', label: 'SLA管理', icon: Gauge, menuKey: 'menu.center.service-catalog' },
+      { path: '/service-catalog/flow', label: '服务流程', icon: GitBranch, menuKey: 'menu.center.service-catalog' },
     ],
   },
-  { path: '/matrix', label: '能力矩阵', icon: Grid3X3 },
-  { path: '/service-ledger', label: '交付资产', icon: BookOpen },
-  { path: '/ai-knowledge', label: 'AI知识库', icon: Brain },
-  { path: '/ops-integration', label: '运维集成中心', icon: Settings },
-  { path: '/settings', label: '设置', icon: Settings },
+  { path: '/matrix', label: '能力矩阵', icon: Grid3X3, menuKey: 'menu.center.matrix' },
+  { path: '/service-ledger', label: '交付资产', icon: BookOpen, menuKey: 'menu.center.service-ledger' },
+  { path: '/ai-knowledge', label: 'AI知识库', icon: Brain, menuKey: 'menu.center.ai-knowledge' },
+  { path: '/ops-integration', label: '运维集成中心', icon: Settings, menuKey: 'menu.center.ops-integration' },
+  { path: '/settings', label: '设置', icon: Settings, menuKey: 'menu.center.settings' },
 ];
 
 function MenuGroup({ item, collapsed }: { item: MenuItem; collapsed: boolean }) {
@@ -188,6 +190,9 @@ function MenuGroup({ item, collapsed }: { item: MenuItem; collapsed: boolean }) 
 export function CenterLayout({ children }: CenterLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { currentUser, logout } = useAuth();
+  const isLoginPage = location.pathname === '/login';
+
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [desktopNavCollapsed, setDesktopNavCollapsed] = useState(false);
@@ -311,52 +316,63 @@ export function CenterLayout({ children }: CenterLayoutProps) {
       </div>
 
       <nav className={`flex-1 space-y-1 overflow-y-auto ${desktopNavCollapsed ? 'px-2 py-3' : 'px-3 py-3'}`}>
-        {menuItems.map((item, idx) => {
-          if (item.children) {
-            return <MenuGroup key={idx} item={item} collapsed={desktopNavCollapsed} />;
-          }
-          const isActive = location.pathname === item.path;
-          const Icon = item.icon;
-          return (
-            <button
-              title={desktopNavCollapsed ? item.label : undefined}
-              key={item.path}
-              onClick={() => navigate(item.path!)}
-              onMouseEnter={() => primeRoute(item.path)}
-              onFocus={() => primeRoute(item.path)}
-              className={`w-full rounded-md transition-colors ${
-                isActive
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-              }`}
-            >
-              <span className={`flex items-center ${desktopNavCollapsed ? 'justify-center px-0 py-2.5' : 'gap-3 px-3 py-2.5 text-sm'}`}>
-                <Icon className="w-[18px] h-[18px]" />
-                {!desktopNavCollapsed && <span>{item.label}</span>}
-              </span>
-            </button>
-          );
-        })}
+        {menuItems
+          .filter(item => {
+            if (item.children) {
+              const visibleChildren = item.children.filter(child => hasMenuAccess(currentUser, child.menuKey));
+              return visibleChildren.length > 0 && hasMenuAccess(currentUser, item.menuKey);
+            }
+            return hasMenuAccess(currentUser, item.menuKey);
+          })
+          .map((item, idx) => {
+            if (item.children) {
+              const visibleChildren = item.children.filter(child => hasMenuAccess(currentUser, child.menuKey));
+              return <MenuGroup key={idx} item={{ ...item, children: visibleChildren }} collapsed={desktopNavCollapsed} />;
+            }
+            const isActive = location.pathname === item.path;
+            const Icon = item.icon;
+            return (
+              <button
+                title={desktopNavCollapsed ? item.label : undefined}
+                key={item.path}
+                onClick={() => navigate(item.path!)}
+                onMouseEnter={() => primeRoute(item.path)}
+                onFocus={() => primeRoute(item.path)}
+                className={`w-full rounded-md transition-colors ${
+                  isActive
+                    ? 'bg-primary/10 text-primary font-medium'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                }`}
+              >
+                <span className={`flex items-center ${desktopNavCollapsed ? 'justify-center px-0 py-2.5' : 'gap-3 px-3 py-2.5 text-sm'}`}>
+                  <Icon className="w-[18px] h-[18px]" />
+                  {!desktopNavCollapsed && <span>{item.label}</span>}
+                </span>
+              </button>
+            );
+          })}
       </nav>
 
-      <div className={`border-t border-border ${desktopNavCollapsed ? 'px-2 py-2' : 'px-3 py-2'}`}>
-        <button
-          title={desktopNavCollapsed ? '帮助中心' : undefined}
-          onClick={() => navigate('/help')}
-          onMouseEnter={() => primeRoute('/help')}
-          onFocus={() => primeRoute('/help')}
-          className={`w-full rounded-md transition-colors ${
-            location.pathname === '/help'
-              ? 'bg-primary/10 text-primary font-medium'
-              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-          }`}
-        >
-          <span className={`flex items-center ${desktopNavCollapsed ? 'justify-center px-0 py-2.5' : 'gap-3 px-3 py-2.5 text-sm'}`}>
-            <CircleHelp className="w-[18px] h-[18px]" />
-            {!desktopNavCollapsed && <span>帮助中心</span>}
-          </span>
-        </button>
-      </div>
+      {hasMenuAccess(currentUser, 'menu.center.help') && (
+        <div className={`border-t border-border ${desktopNavCollapsed ? 'px-2 py-2' : 'px-3 py-2'}`}>
+          <button
+            title={desktopNavCollapsed ? '帮助中心' : undefined}
+            onClick={() => navigate('/help')}
+            onMouseEnter={() => primeRoute('/help')}
+            onFocus={() => primeRoute('/help')}
+            className={`w-full rounded-md transition-colors ${
+              location.pathname === '/help'
+                ? 'bg-primary/10 text-primary font-medium'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+            }`}
+          >
+            <span className={`flex items-center ${desktopNavCollapsed ? 'justify-center px-0 py-2.5' : 'gap-3 px-3 py-2.5 text-sm'}`}>
+              <CircleHelp className="w-[18px] h-[18px]" />
+              {!desktopNavCollapsed && <span>帮助中心</span>}
+            </span>
+          </button>
+        </div>
+      )}
       <div className={`border-t border-border ${desktopNavCollapsed ? 'px-2 py-2' : 'px-3 py-2'}`}>
         <button
           type="button"
@@ -373,6 +389,11 @@ export function CenterLayout({ children }: CenterLayoutProps) {
       </div>
     </>
   );
+
+  // 登录页不渲染运营中心布局
+  if (isLoginPage) {
+    return <>{children}</>;
+  }
 
   return (
     <div className="theme-center min-h-screen bg-background md:flex">
@@ -456,15 +477,21 @@ export function CenterLayout({ children }: CenterLayoutProps) {
                 onClick={() => setUserMenuOpen(value => !value)}
                 className="flex items-center gap-2 rounded-md border border-border px-2 py-1.5 text-sm transition-colors hover:bg-muted"
               >
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-medium text-white">张</span>
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-medium text-white">
+                  {currentUser?.displayName?.charAt(0) || 'U'}
+                </span>
                 <span className="hidden text-left md:block">
-                  <span className="block text-xs font-medium text-foreground">张工</span>
-                  <span className="block text-[11px] text-muted-foreground">基础架构师</span>
+                  <span className="block text-xs font-medium text-foreground">{currentUser?.displayName || '未登录'}</span>
+                  <span className="block text-[11px] text-muted-foreground">{currentUser?.roleLabels.join('、') || ''}</span>
                 </span>
                 <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
               </button>
               {userMenuOpen && (
-                <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-52 rounded-lg border border-border bg-white py-1 shadow-[0_10px_30px_rgba(15,23,42,0.14)]">
+                <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-56 rounded-lg border border-border bg-white py-1 shadow-[0_10px_30px_rgba(15,23,42,0.14)]">
+                  <div className="border-b border-border px-3 py-2">
+                    <p className="text-sm font-medium text-foreground">{currentUser?.displayName || '未登录'}</p>
+                    <p className="text-xs text-muted-foreground">{currentUser?.email || currentUser?.username || ''}</p>
+                  </div>
                   <button
                     onClick={() => { navigate('/settings?tab=security'); setUserMenuOpen(false); }}
                     className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
@@ -481,10 +508,14 @@ export function CenterLayout({ children }: CenterLayoutProps) {
                   </button>
                   <div className="my-1 h-px bg-border" />
                   <button
-                    onClick={() => setUserMenuOpen(false)}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
+                    onClick={async () => {
+                      setUserMenuOpen(false);
+                      await logout();
+                      navigate('/login');
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-sm text-error transition-colors hover:bg-muted"
                   >
-                    <LogOut className="h-4 w-4 text-muted-foreground" />
+                    <LogOut className="h-4 w-4" />
                     退出登录
                   </button>
                 </div>

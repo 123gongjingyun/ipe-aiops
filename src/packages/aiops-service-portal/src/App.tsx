@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect } from 'react';
 import { HashRouter, Routes, Route } from 'react-router-dom';
-import { initDevConfigRemoteSync } from '@aiops/shared';
+import { initDevConfigRemoteSync, LoginPage, RequireAuth, RequireMenuAccess } from '@aiops/shared';
 import { PortalLayout } from './components/portal-layout';
 import { SupportWidget } from './components/support-widget';
 import { ErrorBoundary } from './components/error-boundary';
@@ -59,6 +59,14 @@ export function warmPortalRoute(pathname: string) {
   if (pathname.startsWith('/handbook')) return void loadHandbook();
 }
 
+const PORTAL_LOGIN_BRAND = {
+  moduleName: '服务门户',
+  title: '资源申请服务门户',
+  subtitle: '登录后继续发起资源申请、查看申请单与工单进度',
+  defaultPath: '/',
+  app: 'portal',
+} as const;
+
 function RouteFallback() {
   return (
     <div className="min-h-[420px] rounded-2xl border border-slate-200 bg-white/80 p-6">
@@ -110,21 +118,155 @@ function AppContent() {
       <Suspense fallback={<RouteFallback />}>
         <ErrorBoundary>
           <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/guided-workbench" element={<GuidedWorkbench />} />
-            <Route path="/direct-workbench" element={<DirectWorkbench />} />
-            <Route path="/common-requests" element={<CommonRequests />} />
-            <Route path="/request-records" element={<RequestRecords />} />
-            <Route path="/request-review-export/:id" element={<RequestReviewExportPage />} />
-            <Route path="/catalog" element={<Catalog />} />
-            <Route path="/guide" element={<Guide />} />
-            <Route path="/apply/:comboId" element={<Apply />} />
-            <Route path="/apply-service/:serviceId" element={<ApplyServicePage />} />
-            <Route path="/orders" element={<Orders />} />
-            <Route path="/order/:id" element={<OrderDetail />} />
-            <Route path="/about/*" element={<About />} />
-            <Route path="/help" element={<Help />} />
-            <Route path="/handbook" element={<Handbook />} />
+            <Route path="/login" element={<LoginPage brand={PORTAL_LOGIN_BRAND} />} />
+            <Route
+              path="/"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.portal.home">
+                    <Home />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/common-requests"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.portal.common-requests">
+                    <CommonRequests />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/guided-workbench"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.portal.common-requests">
+                    <GuidedWorkbench />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/direct-workbench"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.portal.common-requests">
+                    <DirectWorkbench />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/apply/:comboId"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.portal.common-requests">
+                    <Apply />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/apply-service/:serviceId"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.portal.common-requests">
+                    <ApplyServicePage />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/request-records"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.portal.request-records">
+                    <RequestRecords />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/request-review-export/:id"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.portal.request-records">
+                    <RequestReviewExportPage />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/catalog"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.portal.catalog">
+                    <Catalog />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/guide"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.portal.help">
+                    <Guide />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/orders"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.portal.orders">
+                    <Orders />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/order/:id"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.portal.orders">
+                    <OrderDetail />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/help"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.portal.help">
+                    <Help />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/handbook"
+              element={
+                <RequireAuth>
+                  <RequireMenuAccess menuKey="menu.portal.help">
+                    <Handbook />
+                  </RequireMenuAccess>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/about"
+              element={
+                <RequireAuth>
+                  <About />
+                </RequireAuth>
+              }
+            />
           </Routes>
         </ErrorBoundary>
       </Suspense>
@@ -133,10 +275,12 @@ function AppContent() {
   );
 }
 
-export default function App() {
+function App() {
   return (
     <HashRouter>
       <AppContent />
     </HashRouter>
   );
 }
+
+export default App;

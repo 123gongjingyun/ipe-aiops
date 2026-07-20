@@ -18,6 +18,9 @@ export * from './lib/request-review-export-validation';
 export * from './lib/request-requirement-definitions';
 export * from './lib/order-stage-nodes';
 
+// 统一认证层
+export * from './auth';
+
 // Spec 数据层
 export { DOMAIN_META, groupSpecsByDomain } from './data/specs/domains';
 export type { DomainInfo, GroupedDomain, GroupedCategory } from './data/specs/domains';

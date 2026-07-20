@@ -18,19 +18,27 @@ import {
   ClipboardList,
   X,
 } from 'lucide-react';
+import { useAuth, hasMenuAccess, type PortalMenuKey } from '@aiops/shared';
 import { warmPortalRoute } from '../App';
 
 interface PortalLayoutProps {
   children: ReactNode;
 }
 
-const navItems = [
-  { path: '/', label: '资源申请工作台', icon: FilePenLine },
-  { path: '/common-requests', label: '常见资源申请', icon: LayoutGrid },
-  { path: '/request-records', label: '资源申请单', icon: ClipboardList },
-  { path: '/catalog', label: '完整服务目录', icon: LayoutGrid },
-  { path: '/orders', label: '我的工单', icon: ClipboardList },
-] as const;
+interface NavItem {
+  path: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  menuKey: PortalMenuKey;
+}
+
+const navItems: NavItem[] = [
+  { path: '/', label: '资源申请工作台', icon: FilePenLine, menuKey: 'menu.portal.home' },
+  { path: '/common-requests', label: '常见资源申请', icon: LayoutGrid, menuKey: 'menu.portal.common-requests' },
+  { path: '/request-records', label: '资源申请单', icon: ClipboardList, menuKey: 'menu.portal.request-records' },
+  { path: '/catalog', label: '完整服务目录', icon: LayoutGrid, menuKey: 'menu.portal.catalog' },
+  { path: '/orders', label: '我的工单', icon: ClipboardList, menuKey: 'menu.portal.orders' },
+];
 
 const productTitleMap: Record<string, string> = {
   vm: '虚拟机申请',
@@ -112,6 +120,12 @@ const pageHeaderMeta: Array<{
 export function PortalLayout({ children }: PortalLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { currentUser, logout } = useAuth();
+  const isLoginPage = location.pathname === '/login';
+
+  const filteredNavItems = navItems.filter(item => hasMenuAccess(currentUser, item.menuKey));
+  const canAccessHelp = hasMenuAccess(currentUser, 'menu.portal.help');
+
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [desktopNavCollapsed, setDesktopNavCollapsed] = useState(false);
@@ -188,7 +202,7 @@ export function PortalLayout({ children }: PortalLayoutProps) {
       </div>
 
       <nav className={`flex-1 space-y-1 overflow-y-auto ${desktopNavCollapsed ? 'px-2 py-3' : 'px-3 py-3'}`}>
-        {navItems.map(item => {
+        {filteredNavItems.map(item => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
           return (
@@ -213,24 +227,26 @@ export function PortalLayout({ children }: PortalLayoutProps) {
         })}
       </nav>
 
-      <div className={`border-t border-border ${desktopNavCollapsed ? 'px-2 py-2' : 'px-3 py-2'}`}>
-        <button
-          title={desktopNavCollapsed ? '帮助中心' : undefined}
-          onClick={() => navigate('/help')}
-          onMouseEnter={() => primeRoute('/help')}
-          onFocus={() => primeRoute('/help')}
-          className={`w-full rounded-md transition-colors ${
-            location.pathname === '/help'
-              ? 'bg-primary/10 font-medium text-primary'
-              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-          }`}
-        >
-          <span className={`flex items-center ${desktopNavCollapsed ? 'justify-center px-0 py-2.5' : 'gap-3 px-3 py-2.5 text-sm'}`}>
-            <CircleHelp className="h-[18px] w-[18px]" />
-            {!desktopNavCollapsed && <span>帮助中心</span>}
-          </span>
-        </button>
-      </div>
+      {canAccessHelp && (
+        <div className={`border-t border-border ${desktopNavCollapsed ? 'px-2 py-2' : 'px-3 py-2'}`}>
+          <button
+            title={desktopNavCollapsed ? '帮助中心' : undefined}
+            onClick={() => navigate('/help')}
+            onMouseEnter={() => primeRoute('/help')}
+            onFocus={() => primeRoute('/help')}
+            className={`w-full rounded-md transition-colors ${
+              location.pathname === '/help'
+                ? 'bg-primary/10 font-medium text-primary'
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+            }`}
+          >
+            <span className={`flex items-center ${desktopNavCollapsed ? 'justify-center px-0 py-2.5' : 'gap-3 px-3 py-2.5 text-sm'}`}>
+              <CircleHelp className="h-[18px] w-[18px]" />
+              {!desktopNavCollapsed && <span>帮助中心</span>}
+            </span>
+          </button>
+        </div>
+      )}
 
       <div className={`border-t border-border ${desktopNavCollapsed ? 'px-2 py-2' : 'px-3 py-2'}`}>
         <button
@@ -248,6 +264,11 @@ export function PortalLayout({ children }: PortalLayoutProps) {
       </div>
     </>
   );
+
+  // 登录页不渲染导航布局
+  if (isLoginPage) {
+    return <>{children}</>;
+  }
 
   return (
     <div className="theme-portal min-h-screen bg-background md:flex">
@@ -306,35 +327,44 @@ export function PortalLayout({ children }: PortalLayoutProps) {
                     ? (currentProductTitle || '引导填写')
                     : location.pathname === '/direct-workbench'
                       ? (currentProductTitle || '直接填写')
-                      : navItems.find(item => item.path === location.pathname)?.label || (location.pathname === '/help' ? '帮助中心' : '交付门户')}
+                      : filteredNavItems.find(item => item.path === location.pathname)?.label || (location.pathname === '/help' ? '帮助中心' : '交付门户')}
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2" ref={menuRef}>
-            <button
-              onClick={() => navigate('/orders')}
-              onMouseEnter={() => primeRoute('/orders')}
-              onFocus={() => primeRoute('/orders')}
-              className="relative rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <Bell className="h-[18px] w-[18px]" />
-            </button>
+            {hasMenuAccess(currentUser, 'menu.portal.orders') && (
+              <button
+                onClick={() => navigate('/orders')}
+                onMouseEnter={() => primeRoute('/orders')}
+                onFocus={() => primeRoute('/orders')}
+                className="relative rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <Bell className="h-[18px] w-[18px]" />
+              </button>
+            )}
             <div className="mx-1 h-5 w-px bg-border" />
             <button
               onClick={() => setUserMenuOpen(v => !v)}
               className="flex items-center gap-2 rounded-md py-1 pl-1 pr-2 transition-colors hover:bg-muted"
             >
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-medium text-white">张</div>
-              <span className="hidden text-sm text-foreground sm:inline">张三</span>
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-medium text-white">
+                {currentUser?.displayName?.charAt(0) || 'U'}
+              </div>
+              <span className="hidden max-w-[120px] truncate text-sm text-foreground sm:inline">
+                {currentUser?.displayName || '未登录'}
+              </span>
               <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
             </button>
 
             {userMenuOpen && (
-              <div className="absolute right-6 top-[52px] z-50 w-48 rounded-md border border-border bg-card py-1 shadow-[0_4px_16px_rgba(0,0,0,0.10)]">
+              <div className="absolute right-6 top-[52px] z-50 w-52 rounded-md border border-border bg-card py-1 shadow-[0_4px_16px_rgba(0,0,0,0.10)]">
                 <div className="border-b border-border px-3 py-2">
-                  <p className="text-sm font-medium text-foreground">张三</p>
-                  <p className="text-xs text-muted-foreground">zhangsan@company.com</p>
+                  <p className="text-sm font-medium text-foreground">{currentUser?.displayName || '未登录'}</p>
+                  <p className="text-xs text-muted-foreground">{currentUser?.email || currentUser?.username || ''}</p>
+                  {currentUser && currentUser.roleLabels.length > 0 && (
+                    <p className="mt-1 text-[11px] text-slate-500">{currentUser.roleLabels.join('、')}</p>
+                  )}
                 </div>
                 <button
                   onClick={() => setUserMenuOpen(false)}
@@ -356,11 +386,10 @@ export function PortalLayout({ children }: PortalLayoutProps) {
                 </button>
                 <div className="my-1 border-t border-border" />
                 <button
-                  onClick={() => {
-                    localStorage.removeItem('ipe_orders');
+                  onClick={async () => {
                     setUserMenuOpen(false);
-                    navigate('/');
-                    window.location.reload();
+                    await logout();
+                    navigate('/login');
                   }}
                   className="w-full px-3 py-2 text-left text-sm text-error transition-colors hover:bg-muted"
                 >

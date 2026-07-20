@@ -176,7 +176,78 @@ npm run test --prefix src
 
 ---
 
-## 四、当前实施边界
+## 四、文档索引
+
+为避免后续开发只靠口头结论推进，当前仓库统一在 README 汇总核心文档入口。后续如阶段目标、边界或实施顺序发生变化，应先更新对应文档，再继续开发。
+
+### 4.1 总方案与执行基线
+
+- [项目总方案与执行基线-2026-07-17.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/项目总方案与执行基线-2026-07-17.md:1)
+- [开发执行详细方案-2026-07-17.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/开发执行详细方案-2026-07-17.md:1)
+- [当前任务进度-2026-06-18.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/当前任务进度-2026-06-18.md:1)
+- [任务计划.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/任务计划.md:1)
+
+### 4.2 Portal / 常见资源申请
+
+- [Portal-V2-任务清单-2026-07-14.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/Portal-V2-任务清单-2026-07-14.md:1)
+- [常见资源申请页面结构方案-2026-07-15.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/常见资源申请页面结构方案-2026-07-15.md:1)
+- [常见资源申请实施任务计划-2026-07-15.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/常见资源申请实施任务计划-2026-07-15.md:1)
+- [常见资源申请字段映射总表-2026-07-15.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/常见资源申请字段映射总表-2026-07-15.md:1)
+- [常见资源申请字段差异分析-2026-07-15.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/常见资源申请字段差异分析-2026-07-15.md:1)
+- [发起页字段分组原型表-2026-07-01.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/发起页字段分组原型表-2026-07-01.md:1)
+- [发起页输入策略升级方案-2026-06-18.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/发起页输入策略升级方案-2026-06-18.md:1)
+
+### 4.3 字段、数据模型与推荐规则
+
+- [资源申请字段收口方案-2026-07-01.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/资源申请字段收口方案-2026-07-01.md:1)
+- [资源申请字段实施优先级-2026-07-01.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/资源申请字段实施优先级-2026-07-01.md:1)
+- [资源申请字段数据模型草案-2026-07-01.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/资源申请字段数据模型草案-2026-07-01.md:1)
+- [资源申请研发落地最小改造清单-2026-07-01.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/资源申请研发落地最小改造清单-2026-07-01.md:1)
+- [资源申请推荐结果映射草案-2026-07-01.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/资源申请推荐结果映射草案-2026-07-01.md:1)
+- [资源申请推荐套餐规则草案-2026-07-01.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/资源申请推荐套餐规则草案-2026-07-01.md:1)
+
+### 4.4 导出、评审材料与阶段任务
+
+- [阶段1-导出体系升级任务清单-2026-07-17.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/阶段1-导出体系升级任务清单-2026-07-17.md:1)
+- [登录与菜单权限接入方案-2026-07-20.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/登录与菜单权限接入方案-2026-07-20.md:1)
+- [Portal-菜单权限矩阵-2026-07-20.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/Portal-菜单权限矩阵-2026-07-20.md:1)
+- [Center-菜单权限矩阵-2026-07-20.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/Center-菜单权限矩阵-2026-07-20.md:1)
+- [认证Mock数据与接口约定-2026-07-20.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/认证Mock数据与接口约定-2026-07-20.md:1)
+
+### 4.5 Center、流程与架构
+
+- [运营中心导航与信息架构分析-2026-06-11.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/运营中心导航与信息架构分析-2026-06-11.md:1)
+- [IT基础服务交付流程对齐优化方案与任务列表.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/IT基础服务交付流程对齐优化方案与任务列表.md:1)
+- [协作架构分析.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/协作架构分析.md:1)
+- [与autoops-workspace整合方案.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/与autoops-workspace整合方案.md:1)
+- [能力矩阵自动化等级判定说明.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/能力矩阵自动化等级判定说明.md:1)
+- [能力矩阵自动化等级维护方案.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/能力矩阵自动化等级维护方案.md:1)
+
+### 4.6 部署、升级与协作
+
+- [DEPLOY.md](/Users/gjy/project-mywayaiops-refactor-V2/DEPLOY.md:1)
+- [GIT_WORKFLOW.md](/Users/gjy/project-mywayaiops-refactor-V2/GIT_WORKFLOW.md:1)
+- [现网升级实施清单-2026-06.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/现网升级实施清单-2026-06.md:1)
+- [现网升级执行命令清单-2026-06.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/现网升级执行命令清单-2026-06.md:1)
+- [现网证书更新说明.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/现网证书更新说明.md:1)
+
+### 4.7 对外讨论与迭代材料
+
+- [1.IPE:AIOps服务交付门户架构方案_对外讨论版.md](</Users/gjy/project-mywayaiops-refactor-V2/迭代文档/1.IPE:AIOps服务交付门户架构方案_对外讨论版.md:1>)
+- [2.IPE:AIOps改造方案_待沟通确认版_v2.md](</Users/gjy/project-mywayaiops-refactor-V2/迭代文档/2.IPE:AIOps改造方案_待沟通确认版_v2.md:1>)
+- [3.IPE交付资源管理中心流程重构与AI辅助方案_对外讨论版.md](</Users/gjy/project-mywayaiops-refactor-V2/迭代文档/3.IPE交付资源管理中心流程重构与AI辅助方案_对外讨论版.md:1>)
+- [云服务器开通-输入输出补充方案.md](</Users/gjy/project-mywayaiops-refactor-V2/迭代文档/云服务器开通-输入输出补充方案.md:1>)
+
+### 4.8 参考项目与外部材料
+
+- [参考/resreq-main/README.md](/Users/gjy/project-mywayaiops-refactor-V2/参考/resreq-main/README.md:1)
+- [参考/resreq-main/DEPLOYMENT_GUIDE.md](/Users/gjy/project-mywayaiops-refactor-V2/参考/resreq-main/DEPLOYMENT_GUIDE.md:1)
+- [参考/resreq-main/START_DATABASE.md](/Users/gjy/project-mywayaiops-refactor-V2/参考/resreq-main/START_DATABASE.md:1)
+- [参考/resreq-main/SECURITY_POLICY.md](/Users/gjy/project-mywayaiops-refactor-V2/参考/resreq-main/SECURITY_POLICY.md:1)
+
+---
+
+## 五、当前实施边界
 
 当前版本先解决“申请材料怎么发起、怎么填、怎么导出给线下评审”，不提前把正式审批与交付流程压到首页。
 
@@ -189,7 +260,7 @@ npm run test --prefix src
 - 正式审批、交付和验收继续留在 `我的工单`
 - `填写说明` 只作为辅助弹框，不再单独占一级菜单
 
-### 4.1 后续开发与汇报原则
+### 5.1 后续开发与汇报原则
 
 从 `2026-07-17` 起，后续开发、评审和阶段汇报统一遵循下面原则：
 
@@ -210,7 +281,7 @@ npm run test --prefix src
    - 当前回滚副本：`/Users/gjy/project-mywayaiops-refactor-V2.backup.20260717-163611`
    - 后续如进入新版本主线开发，应明确“当前稳定版”和“产品化演进版”的边界
 
-### 4.2 常见资源申请字段冻结原则
+### 5.2 常见资源申请字段冻结原则
 
 当前 `常见资源申请` 相关表单字段，属于已经和用户逐项核对过的一版业务口径。
 
@@ -237,7 +308,7 @@ npm run test --prefix src
 
 - **当前常见资源申请字段，以用户已确认版本为准；后续先做产品化承载，不先改字段口径。**
 
-### 4.3 当前开发优先级调整（2026-07-17）
+### 5.3 当前开发优先级调整（2026-07-17）
 
 从当前时间点开始，优先级调整为：
 
@@ -256,9 +327,34 @@ npm run test --prefix src
 - `历史复用 / 重新发起` 仍然重要，但当前优先级低于 `HTML / PDF 导出`
 - `常见资源申请` 当前字段口径不变，产品化阶段只做承载方式升级，不先改字段集合
 
+### 5.4 登录 / 登出 / 菜单权限阶段建议范围（2026-07-20）
+
+登录 / 权限阶段当前建议按“共享认证层 + Portal / Center 双端接入”的方式推进，不直接复制旧项目整套壳层。
+
+当前建议范围：
+
+1. **统一认证层放到 `shared`**
+   - 统一管理 `accessToken`、`currentUser`、菜单权限、动作权限
+2. **Portal / Center 共用一套登录态**
+   - 避免 Portal 与 Center 分别登录
+3. **优先实现菜单权限与页面级守卫**
+   - 先控制页面可见性和访问入口
+4. **注册能力先保留，不默认开放**
+   - 当前平台更偏内部系统，第一阶段以登录、登出、权限控制为主
+5. **视觉统一改为当前平台丰田红风格**
+   - 复用登录逻辑，不复用旧项目青绿色视觉
+
+后续若进入该阶段，除 README 外还应补充独立开发文档，至少包含：
+
+- 认证模块文件结构
+- Portal 菜单权限矩阵
+- Center 菜单权限矩阵
+- 页面级守卫范围
+- 角色与权限 key 映射表
+
 ---
 
-## 五、当前关键状态口径
+## 六、当前关键状态口径
 
 工单状态统一为：
 
@@ -285,7 +381,7 @@ pending(待处理)
 
 ---
 
-## 六、云上发布要点
+## 七、云上发布要点
 
 当前现网不要再按旧口径理解成“把文件 `docker cp` 到 `/usr/share/nginx/html/...` 就生效”。
 
@@ -308,15 +404,15 @@ pending(待处理)
 
 详细发布步骤见：
 
-- [DEPLOY.md](/Users/gjy/project-mywayaiops-refactor-V1/DEPLOY.md:1)
+- [DEPLOY.md](/Users/gjy/project-mywayaiops-refactor-V2/DEPLOY.md:1)
 
 ---
 
-## 七、共享演示数据要点
+## 八、共享演示数据要点
 
 当前原型支持两种云上演示方式：
 
-### 6.1 最小演示模式
+### 8.1 最小演示模式
 
 适合：
 
@@ -327,7 +423,7 @@ pending(待处理)
 
 - 依赖内置演示种子工单
 
-### 6.2 共享演示模式
+### 8.2 共享演示模式
 
 适合：
 
@@ -341,32 +437,32 @@ pending(待处理)
 
 详细说明见：
 
-- [DEPLOY.md](/Users/gjy/project-mywayaiops-refactor-V1/DEPLOY.md:1)
+- [DEPLOY.md](/Users/gjy/project-mywayaiops-refactor-V2/DEPLOY.md:1)
 
 ---
 
-## 八、推荐阅读顺序
+## 九、推荐阅读顺序
 
 如果你要理解当前项目，建议按下面顺序看文档：
 
-1. [DEPLOY.md](/Users/gjy/project-mywayaiops-refactor-V1/DEPLOY.md:1)
+1. [DEPLOY.md](/Users/gjy/project-mywayaiops-refactor-V2/DEPLOY.md:1)
    说明当前真实现网发布方式
-2. [docs/与autoops-workspace整合方案.md](/Users/gjy/project-mywayaiops-refactor-V1/docs/与autoops-workspace整合方案.md:1)
+2. [docs/与autoops-workspace整合方案.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/与autoops-workspace整合方案.md:1)
    说明本模块与 `autoops-workspace` 的关系
-3. [docs/现网升级实施清单-2026-06.md](/Users/gjy/project-mywayaiops-refactor-V1/docs/现网升级实施清单-2026-06.md:1)
+3. [docs/现网升级实施清单-2026-06.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/现网升级实施清单-2026-06.md:1)
    说明现网升级思路
-4. [docs/现网升级执行命令清单-2026-06.md](/Users/gjy/project-mywayaiops-refactor-V1/docs/现网升级执行命令清单-2026-06.md:1)
+4. [docs/现网升级执行命令清单-2026-06.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/现网升级执行命令清单-2026-06.md:1)
    说明现网上线执行命令
-5. [docs/现网证书更新说明.md](/Users/gjy/project-mywayaiops-refactor-V1/docs/现网证书更新说明.md:1)
+5. [docs/现网证书更新说明.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/现网证书更新说明.md:1)
    说明 HTTPS 证书替换路径与校验方法
-6. [docs/资源申请字段收口方案-2026-07-01.md](/Users/gjy/project-mywayaiops-refactor-V1/docs/资源申请字段收口方案-2026-07-01.md:1)
+6. [docs/资源申请字段收口方案-2026-07-01.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/资源申请字段收口方案-2026-07-01.md:1)
    说明资源申请 Excel 模板拆解后的字段归类、页面承载与主流程保护约束
-7. [docs/资源申请字段实施优先级-2026-07-01.md](/Users/gjy/project-mywayaiops-refactor-V1/docs/资源申请字段实施优先级-2026-07-01.md:1)
+7. [docs/资源申请字段实施优先级-2026-07-01.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/资源申请字段实施优先级-2026-07-01.md:1)
    说明资源申请字段分批落地顺序，强调先补发起字段与推荐字段，再补评审/交付/运营字段
 
 ---
 
-## 八、2026-07 常见资源申请改版
+## 十、2026-07 常见资源申请改版
 
 当前这一轮改版的重点，不是继续直接扩写 Portal 原有通用申请页，而是先把“当前阶段客户真正高频使用的常见资源申请”重新分层整理清楚。
 
@@ -408,7 +504,7 @@ pending(待处理)
    - 页面底部总 `规格档位 / 配置参考` 重复区块已移除
    - `正式申请 / 审批 / 交付` 说明已降级到表单操作区内的低优先级说明
 
-### 8.1 当前实现边界
+### 10.1 当前实现边界
 
 当前版本严格只解决下面这条主线：
 
@@ -431,7 +527,7 @@ pending(待处理)
 - `Portal` 先负责“发起、整理、导出评审材料”
 - `Center` 负责“配置、治理、后续正式运营承接”
 
-### 8.2 Portal / Center / Shared 分工
+### 10.2 Portal / Center / Shared 分工
 
 #### Portal 当前职责
 
@@ -488,7 +584,7 @@ Shared 是 Portal 和 Center 之间的共享层，后续应逐步收口这些内
 2. 长期复用的数据定义和规则，逐步沉到 Shared
 3. 可配置能力与后台治理，逐步归到 Center
 
-### 8.3 当前推荐协作方式
+### 10.3 当前推荐协作方式
 
 后续实现时，默认按下面顺序协作，不要反过来：
 
@@ -502,7 +598,7 @@ Shared 是 Portal 和 Center 之间的共享层，后续应逐步收口这些内
 - `Shared` 再负责把稳定规则抽出来
 - `Center` 最后负责“让这些规则变成可维护后台能力”
 
-### 8.4 当前虚拟机申请页状态
+### 10.4 当前虚拟机申请页状态
 
 截至 `2026-07-16`，`虚拟机申请` 已进入“真实工作区骨架”阶段，而不再只是说明页。
 
@@ -553,7 +649,7 @@ Shared 是 Portal 和 Center 之间的共享层，后续应逐步收口这些内
    - `申请环境 + 申请模式 + 虚拟机数量` 合并到同一组紧凑区域展示
    - `虚拟机数量` 不再单独漂浮在右侧
 
-### 8.6 当前字段冻结说明
+### 10.5 当前字段冻结说明
 
 当前 `常见资源申请` 已经进入“字段口径以用户确认版为准”的阶段。
 
@@ -579,7 +675,7 @@ Shared 是 Portal 和 Center 之间的共享层，后续应逐步收口这些内
 2. **字段口径变化**
    - 默认不做，除非重新确认
 
-### 8.5 接下来任务清单
+### 10.6 接下来任务清单
 
 下面这组任务是下一次继续时应直接执行的任务，不需要再重新分析方向。
 
@@ -697,7 +793,7 @@ Shared 是 Portal 和 Center 之间的共享层，后续应逐步收口这些内
 1. 当前不要为了“配合 Center”而反向把 Portal 先做复杂
 2. 当前不要新做一套后台页面去拖慢前台确认节奏
 
-### 8.6 下一次继续时的默认顺序
+### 10.7 下一次继续时的默认顺序
 
 如果下次打开项目，默认按下面顺序继续，不用再重新讨论优先级：
 
@@ -715,12 +811,12 @@ Shared 是 Portal 和 Center 之间的共享层，后续应逐步收口这些内
 
 能力矩阵相关文档：
 
-- [docs/能力矩阵自动化等级判定说明.md](/Users/gjy/project-mywayaiops-refactor-V1/docs/能力矩阵自动化等级判定说明.md:1)
-- [docs/能力矩阵自动化等级维护方案.md](/Users/gjy/project-mywayaiops-refactor-V1/docs/能力矩阵自动化等级维护方案.md:1)
+- [docs/能力矩阵自动化等级判定说明.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/能力矩阵自动化等级判定说明.md:1)
+- [docs/能力矩阵自动化等级维护方案.md](/Users/gjy/project-mywayaiops-refactor-V2/docs/能力矩阵自动化等级维护方案.md:1)
 
 ---
 
-## 八、当前补充说明
+## 十一、当前补充说明
 
 近期已确认的几个关键事实：
 
@@ -731,7 +827,7 @@ Shared 是 Portal 和 Center 之间的共享层，后续应逐步收口这些内
 
 ---
 
-## 九、流程节点状态修复进展
+## 十二、流程节点状态修复进展
 
 截至 `2026-06-29`，本轮已完成的修复与收口：
 
@@ -764,11 +860,11 @@ npm run test --prefix src
 
 ---
 
-## 十、资源申请模板拆解原则
+## 十三、资源申请模板拆解原则
 
-基于 [【资源申请】基础资源需求_V1.xlsx](/Users/gjy/project-mywayaiops-refactor-V1/【资源申请】基础资源需求_V1.xlsx:1) 的最新分析，当前项目对“资源申请 Excel 模板”的产品化改造，统一按下面原则收口。
+基于 `【资源申请】基础资源需求_V1.xlsx` 的最新分析，当前项目对“资源申请 Excel 模板”的产品化改造，统一按下面原则收口。
 
-### 10.1 总原则
+### 13.1 总原则
 
 这份 Excel 不是一张线上表单，而是一套线下协作包，里面混合了：
 
@@ -786,7 +882,7 @@ npm run test --prefix src
 4. 评审/审批节点补充
 5. 交付中心/运营中心回填
 
-### 10.2 各 Sheet 的承载建议
+### 13.2 各 Sheet 的承载建议
 
 建议按下面口径理解：
 
@@ -815,7 +911,7 @@ npm run test --prefix src
 - `17-商流管理表`
   保留为运营/成本侧后台能力，不进入普通申请主流程。
 
-### 10.3 字段治理方向
+### 13.3 字段治理方向
 
 当前应优先收口的不是“把表头搬进系统”，而是把字段分成三类：
 
@@ -846,7 +942,7 @@ npm run test --prefix src
 - `requiresMonitoring`
 - `requiresLogging`
 
-### 10.4 严格约束：不得破坏当前工单主流程状态判断
+### 13.4 严格约束：不得破坏当前工单主流程状态判断
 
 资源申请模板、表头、字段分组、导出列、推荐套餐等后续改造，必须遵守下面约束：
 
@@ -878,7 +974,7 @@ npm run test --prefix src
 - 页面布局分组与 5 -> 3+2 / 4 -> 2+2 / 2 -> 1x2 这类排版规则统一收口在 `src/packages/aiops-service-portal/src/components/apply-service-layout.ts`
 - 该配置层和布局层目前只负责架构图要求、近生产标签、试点字段补充、推荐套餐展示与表单默认值带出；不承载任何流程推进判断
 
-### 10.5 Center 模板页环境推荐配置
+### 13.5 Center 模板页环境推荐配置
 
 截至 `2026-07-03`，Center 侧 `设置 -> 表单模板` 已补充模板级“环境推荐配置”能力，当前口径如下：
 
@@ -908,7 +1004,7 @@ npm run test --prefix src
 - 不把“环境档案”这个后台概念暴露给终端用户
 - 终端用户只感知“环境会影响推荐配置，且推荐值可继续调整”
 
-### 10.6 Center 配置套餐页口径
+### 13.6 Center 配置套餐页口径
 
 截至 `2026-07-03`，Center 侧 `设置 -> 套餐与定价` 已按同一业务页收口，当前口径如下：
 
@@ -928,12 +1024,12 @@ npm run test --prefix src
 
 涉及当前主流程判断的核心文件包括：
 
-- [src/packages/shared/src/lib/workflow-stage.ts](/Users/gjy/project-mywayaiops-refactor-V1/src/packages/shared/src/lib/workflow-stage.ts:1)
-- [src/packages/shared/src/lib/order-stage-flags.ts](/Users/gjy/project-mywayaiops-refactor-V1/src/packages/shared/src/lib/order-stage-flags.ts:1)
-- [src/packages/shared/src/lib/order-stage-nodes.ts](/Users/gjy/project-mywayaiops-refactor-V1/src/packages/shared/src/lib/order-stage-nodes.ts:1)
-- [src/packages/shared/src/store/orders.ts](/Users/gjy/project-mywayaiops-refactor-V1/src/packages/shared/src/store/orders.ts:924)
-- [src/packages/aiops-service-portal/src/pages/order-detail.tsx](/Users/gjy/project-mywayaiops-refactor-V1/src/packages/aiops-service-portal/src/pages/order-detail.tsx:1)
-- [src/packages/aiops-service-center/src/pages/order-detail.tsx](/Users/gjy/project-mywayaiops-refactor-V1/src/packages/aiops-service-center/src/pages/order-detail.tsx:1)
+- [src/packages/shared/src/lib/workflow-stage.ts](/Users/gjy/project-mywayaiops-refactor-V2/src/packages/shared/src/lib/workflow-stage.ts:1)
+- [src/packages/shared/src/lib/order-stage-flags.ts](/Users/gjy/project-mywayaiops-refactor-V2/src/packages/shared/src/lib/order-stage-flags.ts:1)
+- [src/packages/shared/src/lib/order-stage-nodes.ts](/Users/gjy/project-mywayaiops-refactor-V2/src/packages/shared/src/lib/order-stage-nodes.ts:1)
+- [src/packages/shared/src/store/orders.ts](/Users/gjy/project-mywayaiops-refactor-V2/src/packages/shared/src/store/orders.ts:924)
+- [src/packages/aiops-service-portal/src/pages/order-detail.tsx](/Users/gjy/project-mywayaiops-refactor-V2/src/packages/aiops-service-portal/src/pages/order-detail.tsx:1)
+- [src/packages/aiops-service-center/src/pages/order-detail.tsx](/Users/gjy/project-mywayaiops-refactor-V2/src/packages/aiops-service-center/src/pages/order-detail.tsx:1)
 
 后续如果继续推进资源申请字段收口，默认先做：
 
@@ -945,7 +1041,7 @@ npm run test --prefix src
 
 ---
 
-## 十一、明天继续
+## 十四、明天继续
 
 明天建议继续这几个点，按顺序推进：
 
@@ -955,10 +1051,10 @@ npm run test --prefix src
 
 如果明天继续这条线，建议优先从下面几个文件开始看：
 
-- [README.md](/Users/gjy/project-mywayaiops-refactor-V1/README.md:1)
-- [src/packages/shared/src/store/orders.ts](/Users/gjy/project-mywayaiops-refactor-V1/src/packages/shared/src/store/orders.ts:924)
-- [src/packages/shared/src/lib/workflow-stage.ts](/Users/gjy/project-mywayaiops-refactor-V1/src/packages/shared/src/lib/workflow-stage.ts:1)
-- [src/packages/shared/src/lib/order-stage-flags.ts](/Users/gjy/project-mywayaiops-refactor-V1/src/packages/shared/src/lib/order-stage-flags.ts:1)
-- [src/packages/shared/src/lib/order-stage-nodes.ts](/Users/gjy/project-mywayaiops-refactor-V1/src/packages/shared/src/lib/order-stage-nodes.ts:1)
-- [src/packages/aiops-service-portal/src/pages/order-detail.tsx](/Users/gjy/project-mywayaiops-refactor-V1/src/packages/aiops-service-portal/src/pages/order-detail.tsx:1)
-- [src/packages/aiops-service-center/src/pages/order-detail.tsx](/Users/gjy/project-mywayaiops-refactor-V1/src/packages/aiops-service-center/src/pages/order-detail.tsx:1)
+- [README.md](/Users/gjy/project-mywayaiops-refactor-V2/README.md:1)
+- [src/packages/shared/src/store/orders.ts](/Users/gjy/project-mywayaiops-refactor-V2/src/packages/shared/src/store/orders.ts:924)
+- [src/packages/shared/src/lib/workflow-stage.ts](/Users/gjy/project-mywayaiops-refactor-V2/src/packages/shared/src/lib/workflow-stage.ts:1)
+- [src/packages/shared/src/lib/order-stage-flags.ts](/Users/gjy/project-mywayaiops-refactor-V2/src/packages/shared/src/lib/order-stage-flags.ts:1)
+- [src/packages/shared/src/lib/order-stage-nodes.ts](/Users/gjy/project-mywayaiops-refactor-V2/src/packages/shared/src/lib/order-stage-nodes.ts:1)
+- [src/packages/aiops-service-portal/src/pages/order-detail.tsx](/Users/gjy/project-mywayaiops-refactor-V2/src/packages/aiops-service-portal/src/pages/order-detail.tsx:1)
+- [src/packages/aiops-service-center/src/pages/order-detail.tsx](/Users/gjy/project-mywayaiops-refactor-V2/src/packages/aiops-service-center/src/pages/order-detail.tsx:1)
