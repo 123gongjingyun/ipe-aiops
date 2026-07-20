@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   buildRequestReviewExportModel,
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -10,8 +11,10 @@ import {
   getRequestRecord,
   markRequestRecordsExported,
   type RequestReviewExportValidationResult,
+  updateRequestRecordApprovalNote,
   validateRequestReviewExport,
 } from '@aiops/shared';
+import { Textarea } from '@aiops/shared/ui';
 import {
   ApplicationInfoGroupedRows,
   CompactFieldRows,
@@ -28,6 +31,8 @@ export function RequestReviewExportPage() {
   const model = useMemo(() => (record ? buildRequestReviewExportModel(record) : null), [record]);
   const exportRootRef = useRef<HTMLDivElement | null>(null);
   const [validationResult, setValidationResult] = useState<RequestReviewExportValidationResult | null>(null);
+  const [approvalNoteInput, setApprovalNoteInput] = useState(model?.approvalNoteSection.fields[0]?.value || '');
+  const [approvalNoteSaved, setApprovalNoteSaved] = useState(false);
   const from = searchParams.get('from');
   const product = searchParams.get('product') || record?.product || 'vm';
   const mode = searchParams.get('mode') || record?.mode || 'assistant';
@@ -146,27 +151,34 @@ export function RequestReviewExportPage() {
         <SummaryRows fields={model.reviewSummaryOverviewSection.fields} />
       </ReviewExportSectionCard>
 
-      <ReviewExportSectionCard section={model.talkingPointsSection} prefix="D." tone="warm" collapsible defaultExpanded={false}>
-        <div className="space-y-3">
-          {model.talkingPointsSection.fields[0]?.value
-            .split('\n\n')
-            .filter(Boolean)
-            .map((point, index) => (
-              <div
-                key={index}
-                className="review-print-text rounded-2xl border border-amber-100 bg-amber-50/50 px-4 py-3 text-sm leading-6 text-slate-700"
-              >
-                {point}
-              </div>
-            ))}
-        </div>
-      </ReviewExportSectionCard>
-
       <ReviewExportSectionCard section={model.approvalNoteSection}>
         <div className="rounded-[20px] border-2 border-dashed border-slate-300 bg-slate-50/70 px-4 py-5">
-          <div className="text-sm font-medium text-slate-800">审批意见框</div>
-          <div className="review-print-approval review-print-text mt-3 min-h-[180px] whitespace-pre-wrap rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm leading-7 text-slate-400">
-            {model.approvalNoteSection.fields[0]?.placeholder}
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-medium text-slate-800">审批意见</div>
+            <div className="text-xs text-slate-400">线下审批完成后，由申请人填写</div>
+          </div>
+          <Textarea
+            value={approvalNoteInput}
+            onChange={event => {
+              setApprovalNoteInput(event.target.value);
+              setApprovalNoteSaved(false);
+            }}
+            placeholder={model.approvalNoteSection.placeholder}
+            className="review-print-approval review-print-text mt-3 min-h-[180px] resize-none whitespace-pre-wrap rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm leading-7"
+          />
+          <div className="review-print-hidden mt-3 flex items-center justify-end gap-3">
+            {approvalNoteSaved && <span className="text-xs text-emerald-600">已保存审批意见</span>}
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                updateRequestRecordApprovalNote(record.id, approvalNoteInput.trim());
+                setApprovalNoteSaved(true);
+                markRequestRecordsExported([record.id]);
+              }}
+            >
+              保存审批意见
+            </Button>
           </div>
         </div>
       </ReviewExportSectionCard>

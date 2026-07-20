@@ -4,7 +4,6 @@ export type RequestReviewSectionKey =
   | 'userRequirements'
   | 'applicationInfo'
   | 'reviewSummaryOverview'
-  | 'talkingPoints'
   | 'approvalNote';
 
 export interface RequestReviewFieldDefinition {
@@ -102,8 +101,5 @@ export const REQUEST_REVIEW_SECTION_TITLES: Record<RequestReviewSectionKey, stri
   userRequirements: '用户需求',
   applicationInfo: '申请信息',
   reviewSummaryOverview: '评审概要概览',
-  talkingPoints: '评审交流话术建议',
   approvalNote: '审批意见',
 };
-
-export const REQUEST_REVIEW_TALKING_POINTS_EMPTY = '当前申请材料较完整，暂无特别需要补充的交流话术。评审时可根据实际场景追问业务优先级、使用周期、回收策略等内容。';

@@ -51,6 +51,7 @@ export interface RequestRecord {
   updatedAt: string;
   summary: string;
   reviewSummaryOverview?: string;
+  approvalNote?: string;
   mode: RequestRecordMode;
   draft: RequestRecordDraftPayload;
 }
@@ -290,6 +291,23 @@ export function saveRequestRecord(input: {
     draft: { ...input.draft },
   };
   records.unshift(nextRecord);
+  writeRecords(records);
+  notifySync();
+  return nextRecord;
+}
+
+export function updateRequestRecordApprovalNote(id: string, approvalNote: string): RequestRecord {
+  const records = getRequestRecords();
+  const index = records.findIndex(record => record.id === id);
+  if (index < 0) {
+    throw new Error(`Request record ${id} not found`);
+  }
+  const nextRecord: RequestRecord = {
+    ...records[index],
+    approvalNote,
+    updatedAt: new Date().toLocaleString('zh-CN'),
+  };
+  records[index] = nextRecord;
   writeRecords(records);
   notifySync();
   return nextRecord;

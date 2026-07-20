@@ -144,6 +144,7 @@ export {
   getRequestRecords,
   getRequestRecord,
   saveRequestRecord,
+  updateRequestRecordApprovalNote,
   markRequestRecordsExported,
   deleteRequestRecord,
   onRequestRecordsSync,
