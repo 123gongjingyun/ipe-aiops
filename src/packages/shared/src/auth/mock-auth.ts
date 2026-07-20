@@ -16,6 +16,11 @@ export interface MockCredential {
   user: AuthUser;
 }
 
+const PORTAL_APPLICANT_MENUS: PortalMenuKey[] = [
+  'menu.portal.common-requests',
+  'menu.portal.request-records',
+];
+
 const PORTAL_ALL_MENUS: PortalMenuKey[] = [
   'menu.portal.home',
   'menu.portal.common-requests',
@@ -76,21 +81,21 @@ function buildUser(
 /** 申请人 */
 export const MOCK_USER_APPLICANT: AuthUser = buildUser(
   'user-applicant-1',
-  'zhou.ning',
-  '周宁',
-  'zhou.ning@getpre.cn',
+  'gong.gy',
+  '巩工',
+  'gong.gy@getpre.cn',
   'applicant',
   '申请人',
-  [...PORTAL_ALL_MENUS],
+  [...PORTAL_APPLICANT_MENUS],
   [...PORTAL_APPLICANT_ACTIONS]
 );
 
 /** 系统管理员 */
 export const MOCK_USER_PLATFORM_ADMIN: AuthUser = buildUser(
   'user-platform-admin-1',
-  'chen.sy',
-  '陈思远',
-  'chen.sy@getpre.cn',
+  'yang.gong',
+  '杨工',
+  'yang.gong@getpre.cn',
   'platform-admin',
   '系统管理员',
   [...PORTAL_ALL_MENUS, ...CENTER_ALL_MENUS],
@@ -103,100 +108,10 @@ export const MOCK_USER_PLATFORM_ADMIN: AuthUser = buildUser(
   ]
 );
 
-/** 交付担当 */
-export const MOCK_USER_DELIVERY: AuthUser = buildUser(
-  'user-delivery-1',
-  'wang.qh',
-  '王启航',
-  'wang.qh@getpre.cn',
-  'delivery-engineer',
-  '交付担当',
-  [
-    'menu.portal.home',
-    'menu.portal.catalog',
-    'menu.portal.orders',
-    'menu.portal.help',
-    'menu.center.dashboard',
-    'menu.center.orders',
-    'menu.center.service-catalog',
-    'menu.center.matrix',
-    'menu.center.service-ledger',
-    'menu.center.ops-integration',
-    'menu.center.help',
-  ],
-  ['action.center.order.approve', 'action.center.catalog.manage']
-);
-
-/** 审批人 */
-export const MOCK_USER_REVIEWER: AuthUser = buildUser(
-  'user-reviewer-1',
-  'zhao.sq',
-  '赵思齐',
-  'zhao.sq@getpre.cn',
-  'reviewer',
-  '审批人',
-  [
-    'menu.portal.home',
-    'menu.portal.orders',
-    'menu.portal.help',
-    'menu.center.dashboard',
-    'menu.center.orders',
-    'menu.center.service-catalog',
-    'menu.center.matrix',
-    'menu.center.help',
-  ],
-  [...CENTER_ORDER_ACTIONS]
-);
-
-/** 运维人员 */
-export const MOCK_USER_OPS: AuthUser = buildUser(
-  'user-ops-1',
-  'sun.ht',
-  '孙海涛',
-  'sun.ht@getpre.cn',
-  'ops',
-  '运维人员',
-  [
-    'menu.portal.home',
-    'menu.portal.orders',
-    'menu.portal.help',
-    'menu.center.dashboard',
-    'menu.center.orders',
-    'menu.center.service-ledger',
-    'menu.center.ops-integration',
-    'menu.center.help',
-  ],
-  ['action.center.order.approve']
-);
-
-/** 安全管理员 */
-export const MOCK_USER_SECURITY_ADMIN: AuthUser = buildUser(
-  'user-security-1',
-  'gao.lan',
-  '高岚',
-  'gao.lan@getpre.cn',
-  'security-admin',
-  '安全管理员',
-  [
-    'menu.portal.home',
-    'menu.portal.orders',
-    'menu.portal.help',
-    'menu.center.dashboard',
-    'menu.center.orders',
-    'menu.center.ops-integration',
-    'menu.center.help',
-  ],
-  ['action.center.order.approve', 'action.center.order.reject']
-);
-
 /** 全部 mock 用户列表 */
 export const MOCK_USERS: AuthUser[] = [
   MOCK_USER_APPLICANT,
   MOCK_USER_PLATFORM_ADMIN,
-  MOCK_USER_DELIVERY,
-  MOCK_USER_REVIEWER,
-  MOCK_USER_OPS,
-  MOCK_USER_SECURITY_ADMIN,
 ];
 
 /** 按用户名索引的 mock 用户映射 */
@@ -206,13 +121,21 @@ export const MOCK_USER_MAP: Record<string, AuthUser> = Object.fromEntries(
 
 /** mock 账号密码映射表，所有演示账号统一密码 */
 export const MOCK_CREDENTIALS: Record<string, string> = {
-  'zhou.ning': '123456',
-  'chen.sy': '123456',
-  'wang.qh': '123456',
-  'zhao.sq': '123456',
-  'sun.ht': '123456',
-  'gao.lan': '123456',
+  'gong.gy': '123456',
+  'yang.gong': '123456',
 };
+
+/** 演示账号快速切换面板数据 */
+export interface DemoAccount {
+  username: string;
+  displayName: string;
+  roleLabel: string;
+}
+
+export const DEMO_ACCOUNTS: DemoAccount[] = [
+  { username: 'gong.gy', displayName: '巩工', roleLabel: '申请人' },
+  { username: 'yang.gong', displayName: '杨工', roleLabel: '系统管理员' },
+];
 
 /** 生成 mock accessToken */
 export function buildMockAccessToken(username: string): string {
@@ -229,4 +152,23 @@ export function findMockUserByCredentials(
   const user = MOCK_USER_MAP[username];
   if (!user || !user.isActive) return null;
   return user;
+}
+
+/** 新用户注册时的默认 applicant 权限（仅 Portal 常见资源申请 + 资源申请单） */
+export function buildDefaultApplicantUser(
+  id: string,
+  username: string,
+  displayName: string,
+  email?: string
+): AuthUser {
+  return buildUser(
+    id,
+    username,
+    displayName,
+    email ?? `${username}@getpre.cn`,
+    'applicant',
+    '申请人',
+    [...PORTAL_APPLICANT_MENUS],
+    [...PORTAL_APPLICANT_ACTIONS]
+  );
 }

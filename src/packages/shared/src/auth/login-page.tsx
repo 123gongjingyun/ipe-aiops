@@ -9,26 +9,13 @@ import {
   getCenterDefaultPathByRoles,
   getPortalDefaultPathByRoles,
 } from './auth-permissions';
-import { MOCK_CREDENTIALS } from './mock-auth';
+import { DEMO_ACCOUNTS, MOCK_CREDENTIALS, type DemoAccount } from './mock-auth';
 
 export interface LoginPageProps {
   brand: LoginBrandConfig;
 }
 
-interface DemoAccount {
-  username: string;
-  displayName: string;
-  roleLabel: string;
-}
 
-const DEMO_ACCOUNTS: DemoAccount[] = [
-  { username: 'zhou.ning', displayName: '周宁', roleLabel: '申请人' },
-  { username: 'chen.sy', displayName: '陈思远', roleLabel: '系统管理员' },
-  { username: 'wang.qh', displayName: '王启航', roleLabel: '交付担当' },
-  { username: 'zhao.sq', displayName: '赵思齐', roleLabel: '审批人' },
-  { username: 'sun.ht', displayName: '孙海涛', roleLabel: '运维人员' },
-  { username: 'gao.lan', displayName: '高岚', roleLabel: '安全管理员' },
-];
 
 export function LoginPage({ brand }: LoginPageProps) {
   const navigate = useNavigate();

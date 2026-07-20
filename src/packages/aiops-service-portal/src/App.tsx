@@ -123,7 +123,7 @@ function AppContent() {
               path="/"
               element={
                 <RequireAuth>
-                  <RequireMenuAccess menuKey="menu.portal.home">
+                  <RequireMenuAccess menuKey="menu.portal.home" fallbackPath="/common-requests">
                     <Home />
                   </RequireMenuAccess>
                 </RequireAuth>

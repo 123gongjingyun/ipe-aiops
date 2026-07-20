@@ -1,6 +1,7 @@
 import { ArrowRight, Boxes, CircleHelp, Database, FolderKanban, HardDrive, Network, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth, hasMenuAccess } from '@aiops/shared';
 import { FillGuideDialog } from '../components/fill-guide-dialog';
 
 const commonProducts = [
@@ -91,6 +92,8 @@ function toneClasses(tone: string) {
 
 export function CommonRequests() {
   const [guideOpen, setGuideOpen] = useState(false);
+  const { currentUser } = useAuth();
+  const canAccessCatalog = hasMenuAccess(currentUser, 'menu.portal.catalog');
 
   return (
     <div className="space-y-5">
@@ -145,13 +148,23 @@ export function CommonRequests() {
 
       <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4">
         <p className="text-sm text-slate-500">未覆盖你的场景？</p>
-        <Link
-          to="/catalog"
-          className="inline-flex items-center gap-1 text-sm font-medium text-slate-700 transition-colors hover:text-slate-900"
-        >
-          查看完整服务目录
-          <ArrowRight className="h-4 w-4" />
-        </Link>
+        {canAccessCatalog ? (
+          <Link
+            to="/catalog"
+            className="inline-flex items-center gap-1 text-sm font-medium text-slate-700 transition-colors hover:text-slate-900"
+          >
+            查看完整服务目录
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        ) : (
+          <span
+            className="inline-flex cursor-not-allowed items-center gap-1 text-sm font-medium text-slate-400"
+            title="当前账号暂无完整服务目录访问权限"
+          >
+            查看完整服务目录
+            <ArrowRight className="h-4 w-4" />
+          </span>
+        )}
       </div>
     </div>
   );

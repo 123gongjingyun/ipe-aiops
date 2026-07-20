@@ -118,6 +118,7 @@ export function getPortalDefaultPathByRoles(roleKeys: RoleKey[]): string {
   const topRole = priority.find(role => roleKeys.includes(role));
   switch (topRole) {
     case 'applicant':
+      return '/common-requests';
     case 'platform-admin':
       return '/';
     case 'delivery-engineer':
@@ -162,4 +163,10 @@ export function isPortalMenuKey(key: MenuPermissionKey): key is PortalMenuKey {
 /** 类型守卫：判断 key 是否为 Center 菜单 */
 export function isCenterMenuKey(key: MenuPermissionKey): key is CenterMenuKey {
   return key.startsWith('menu.center.');
+}
+
+/** 判断用户是否有任意 Center 菜单权限 */
+export function hasCenterAccess(user: AuthUser | null | undefined): boolean {
+  if (!user || !user.isActive) return false;
+  return user.effectiveMenuKeys.some(key => isCenterMenuKey(key));
 }

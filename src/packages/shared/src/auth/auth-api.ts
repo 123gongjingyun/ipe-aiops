@@ -1,5 +1,5 @@
 import type { AuthApiResponse, AuthSession, AuthUser, LoginRequest, LoginResponseData, MeResponseData } from './auth-types';
-import { buildMockAccessToken, findMockUserByCredentials } from './mock-auth';
+import { buildDefaultApplicantUser, buildMockAccessToken, findMockUserByCredentials } from './mock-auth';
 
 /** 是否启用 mock 认证 */
 export const AUTH_MOCK_ENABLED = true;
@@ -51,16 +51,29 @@ export async function login(request: LoginRequest): Promise<AuthSession> {
   };
 }
 
-/** 注册：第一阶段保留能力，不默认开放 UI */
+/** 注册：第一阶段保留能力，不默认开放 UI；mock 阶段默认赋予 applicant 角色 */
 export async function register(request: {
   username: string;
   displayName: string;
   email?: string;
   password: string;
-}): Promise<AuthApiResponse> {
+}): Promise<AuthApiResponse<LoginResponseData>> {
   if (AUTH_MOCK_ENABLED) {
     await mockDelay();
-    return { success: true, message: '注册成功' };
+    const user = buildDefaultApplicantUser(
+      `user-applicant-${Date.now()}`,
+      request.username,
+      request.displayName,
+      request.email
+    );
+    return {
+      success: true,
+      message: '注册成功',
+      data: {
+        accessToken: buildMockAccessToken(user.username),
+        currentUser: user,
+      },
+    };
   }
 
   const response = await fetch('/auth/register', {
@@ -68,7 +81,7 @@ export async function register(request: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(request),
   });
-  return (await response.json()) as AuthApiResponse;
+  return (await response.json()) as AuthApiResponse<LoginResponseData>;
 }
 
 /** 获取当前用户 */

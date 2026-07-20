@@ -18,7 +18,7 @@ import {
   ClipboardList,
   X,
 } from 'lucide-react';
-import { useAuth, hasMenuAccess, type PortalMenuKey } from '@aiops/shared';
+import { useAuth, hasMenuAccess, hasCenterAccess, type PortalMenuKey } from '@aiops/shared';
 import { warmPortalRoute } from '../App';
 
 interface PortalLayoutProps {
@@ -333,6 +333,14 @@ export function PortalLayout({ children }: PortalLayoutProps) {
           </div>
 
           <div className="flex items-center gap-2" ref={menuRef}>
+            {hasCenterAccess(currentUser) && (
+              <button
+                onClick={() => window.location.href = '/center/'}
+                className="hidden items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:border-[#C8102E]/30 hover:text-[#C8102E] sm:inline-flex"
+              >
+                <span>运营中心</span>
+              </button>
+            )}
             {hasMenuAccess(currentUser, 'menu.portal.orders') && (
               <button
                 onClick={() => navigate('/orders')}
