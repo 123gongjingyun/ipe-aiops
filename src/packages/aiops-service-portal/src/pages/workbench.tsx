@@ -5333,7 +5333,7 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">{currentProduct?.title || '资源申请工作区'}</h1>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => setMode('assistant')}
@@ -5358,6 +5358,23 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
                 <LayoutTemplate className="h-4 w-4" />
                 直接填写
               </button>
+              <button
+                type="button"
+                onClick={() => setShowQuickStartHint(current => !current)}
+                className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors ${
+                  showQuickStartHint
+                    ? 'border-blue-400 bg-blue-100 text-blue-800 shadow-sm'
+                    : 'border-blue-200 bg-blue-50/70 text-blue-700 hover:border-blue-300 hover:bg-blue-100'
+                }`}
+              >
+                <Lightbulb className="h-4 w-4" />
+                {showQuickStartHint ? '收起提示' : '快速发起'}
+              </button>
+              {showQuickStartHint && (
+                <span className="inline-flex max-w-md items-center rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-sm leading-5 text-blue-700">
+                  也可以从申请单列表选择历史记录，点击"复制为新申请"快速发起。
+                </span>
+              )}
             </div>
           </div>
           <Link
@@ -5373,22 +5390,6 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
             : '当前为直接填写：边界已明确，可快速录入全部字段。'}
         </div>
 
-        <div className="mt-2">
-          <button
-            type="button"
-            onClick={() => setShowQuickStartHint(current => !current)}
-            className="group inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-700 transition-colors hover:border-amber-300 hover:bg-amber-100"
-          >
-            <Lightbulb className="h-4 w-4" />
-            <span>快速发起提示</span>
-            {showQuickStartHint ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-          </button>
-          {showQuickStartHint && (
-            <div className="mt-2 rounded-xl border border-amber-100 bg-amber-50/70 px-3 py-2.5 text-sm leading-6 text-amber-800">
-              也可以从申请单列表选择历史记录，点击"复制为新申请"快速发起。
-            </div>
-          )}
-        </div>
       </div>
 
       {saveNotice && (
