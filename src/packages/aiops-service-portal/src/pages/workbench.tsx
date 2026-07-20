@@ -7,6 +7,7 @@ import {
   Download,
   FileText,
   LayoutTemplate,
+  Lightbulb,
   ListChecks,
   Save,
   Sparkles,
@@ -3946,6 +3947,7 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
   const [vmBaseConfigCollapsed, setVmBaseConfigCollapsed] = useState(false);
   const [collapsedVmComponents, setCollapsedVmComponents] = useState<Record<string, boolean>>({});
   const [showWorkflowHint, setShowWorkflowHint] = useState(false);
+  const [showQuickStartHint, setShowQuickStartHint] = useState(false);
   const [exportValidationResult, setExportValidationResult] = useState<RequestReviewExportValidationResult | null>(null);
   const product = searchParams.get('product') || '';
   const action = searchParams.get('action') || '';
@@ -5370,6 +5372,23 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
             ? '当前为引导填写：你已明确资源类型，下面按规格、容量、高可用和评审关注点逐项确认。'
             : '当前为直接填写：边界已明确，可快速录入全部字段。'}
         </div>
+
+        <div className="mt-2">
+          <button
+            type="button"
+            onClick={() => setShowQuickStartHint(current => !current)}
+            className="group inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-700 transition-colors hover:border-amber-300 hover:bg-amber-100"
+          >
+            <Lightbulb className="h-4 w-4" />
+            <span>快速发起提示</span>
+            {showQuickStartHint ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          </button>
+          {showQuickStartHint && (
+            <div className="mt-2 rounded-xl border border-amber-100 bg-amber-50/70 px-3 py-2.5 text-sm leading-6 text-amber-800">
+              也可以从申请单列表选择历史记录，点击"复制为新申请"快速发起。
+            </div>
+          )}
+        </div>
       </div>
 
       {saveNotice && (
@@ -5425,7 +5444,7 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
             >
               <CircleHelp className="h-3.5 w-3.5" />
             </button>
-            <span>填写完成后再保存申请单，预览导出将在这里衔接；也可以从申请单列表选择历史记录，点击"复制为新申请"快速发起。</span>
+            <span>填写完成后再保存申请单，预览导出将在这里衔接。</span>
           </div>
           {showWorkflowHint && (
             <div className="mt-2 text-xs leading-5 text-slate-400">
