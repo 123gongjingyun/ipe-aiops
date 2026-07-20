@@ -31,23 +31,30 @@ const ToastContext = createContext<ToastContextValue | null>(null);
 const VARIANT_STYLES = {
   success: {
     accent: 'bg-emerald-500',
-    icon: 'text-emerald-500',
+    progress: 'bg-emerald-500',
   },
   error: {
     accent: 'bg-red-500',
-    icon: 'text-red-500',
+    progress: 'bg-red-500',
   },
   info: {
     accent: 'bg-[#C8102E]',
-    icon: 'text-[#C8102E]',
+    progress: 'bg-[#C8102E]',
   },
   warning: {
     accent: 'bg-amber-500',
-    icon: 'text-amber-500',
+    progress: 'bg-amber-500',
   },
 };
 
 let toastIdCounter = 0;
+
+const TOAST_ANIMATION_STYLES = `
+@keyframes ipe-toast-progress {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+`;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -68,29 +75,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  useEffect(() => {
-    if (toasts.length === 0) return;
-    const timers = toasts.map(item =>
-      window.setTimeout(() => dismiss(item.id), item.duration)
-    );
-    return () => {
-      timers.forEach(timer => window.clearTimeout(timer));
-    };
-  }, [toasts, dismiss]);
-
-  useEffect(() => {
-    function onGlobalToast(e: Event) {
-      const detail = (e as CustomEvent<ToastOptions>).detail;
-      if (detail) toast(detail);
-    }
-    window.addEventListener('ipe-global-toast', onGlobalToast);
-    return () => window.removeEventListener('ipe-global-toast', onGlobalToast);
-  }, [toast]);
-
-  const value = useMemo(() => ({ toast, dismiss }), [toast, dismiss]);
-
   return (
-    <ToastContext.Provider value={value}>
+    <ToastContext.Provider value={{ toast, dismiss }}>
+      <style>{TOAST_ANIMATION_STYLES}</style>
       {children}
       <ToastViewport toasts={toasts} onDismiss={dismiss} />
     </ToastContext.Provider>
@@ -122,32 +109,43 @@ function ToastCard({
   onDismiss: (id: string) => void;
 }) {
   const styles = VARIANT_STYLES[toast.variant ?? 'info'];
+  const duration = toast.duration ?? 4000;
 
   return (
     <div
-      className="pointer-events-auto flex w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.12)] animate-in slide-in-from-right-full fade-in duration-300"
+      className="pointer-events-auto relative flex w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.12)] animate-in slide-in-from-right-full fade-in duration-300"
       role="alert"
     >
       {/* 左侧高亮条 */}
       <div className={`w-1.5 shrink-0 ${styles.accent}`} />
-      <div className="flex flex-1 items-start gap-3 px-4 py-3.5">
-        <div className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-current opacity-80" />
-        <div className="min-w-0 flex-1">
-          {toast.title && (
-            <p className="text-sm font-semibold text-slate-900">{toast.title}</p>
-          )}
-          {toast.description && (
-            <p className="mt-0.5 text-sm leading-5 text-slate-600">{toast.description}</p>
-          )}
+      <div className="flex min-w-0 flex-1 items-center justify-between px-4 py-3.5">
+        <div className="flex min-w-0 items-center gap-2">
+          <div className={`h-2 w-2 shrink-0 rounded-full ${styles.accent}`} />
+          <p className="truncate text-sm font-medium text-slate-900">
+            {toast.title}
+            {toast.description && (
+              <span className="ml-1 font-normal text-slate-600">{toast.description}</span>
+            )}
+          </p>
         </div>
         <button
           type="button"
           onClick={() => onDismiss(toast.id)}
-          className="shrink-0 rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+          className="ml-2 shrink-0 rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
           aria-label="关闭提示"
         >
           <X className="h-4 w-4" />
         </button>
+      </div>
+      {/* 底部动态进度条 */}
+      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-100">
+        <div
+          className={`h-full ${styles.progress}`}
+          style={{
+            width: '100%',
+            animation: `ipe-toast-progress ${duration}ms linear forwards`,
+          }}
+        />
       </div>
     </div>
   );
@@ -164,7 +162,6 @@ export function useToast(): ToastContextValue {
 /** 全局 toast API，需在 ToastProvider 内使用 */
 export function toast(options: ToastOptions): void {
   if (typeof window === 'undefined') return;
-  // 通过自定义事件触发，供未在 Provider 内消费的地方使用
   window.dispatchEvent(
     new CustomEvent('ipe-global-toast', { detail: options })
   );

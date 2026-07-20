@@ -51,13 +51,13 @@ export async function login(request: LoginRequest): Promise<AuthSession> {
   };
 }
 
-/** 注册：第一阶段保留能力，不默认开放 UI；mock 阶段默认赋予 applicant 角色 */
+/** 注册：第一阶段保留能力；mock 阶段默认赋予 applicant 角色并直接返回 session */
 export async function register(request: {
   username: string;
   displayName: string;
   email?: string;
   password: string;
-}): Promise<AuthApiResponse<LoginResponseData>> {
+}): Promise<AuthSession> {
   if (AUTH_MOCK_ENABLED) {
     await mockDelay();
     const user = buildDefaultApplicantUser(
@@ -67,12 +67,9 @@ export async function register(request: {
       request.email
     );
     return {
-      success: true,
-      message: '注册成功',
-      data: {
-        accessToken: buildMockAccessToken(user.username),
-        currentUser: user,
-      },
+      accessToken: buildMockAccessToken(user.username),
+      currentUser: user,
+      issuedAt: new Date().toISOString(),
     };
   }
 
@@ -81,7 +78,15 @@ export async function register(request: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(request),
   });
-  return (await response.json()) as AuthApiResponse<LoginResponseData>;
+  const result = (await response.json()) as AuthApiResponse<LoginResponseData>;
+  if (!result.success || !result.data) {
+    throw new AuthApiError(result.message || '注册失败', 'AUTH_REGISTER_FAILED');
+  }
+  return {
+    accessToken: result.data.accessToken,
+    currentUser: result.data.currentUser,
+    issuedAt: new Date().toISOString(),
+  };
 }
 
 /** 获取当前用户 */

@@ -27,6 +27,8 @@ export interface AuthContextValue {
   isAuthenticated: boolean;
   /** 登录 */
   login: (request: LoginRequest) => Promise<void>;
+  /** 直接使用已有 session 设置登录态（如注册后自动登录） */
+  setSession: (session: AuthSession) => void;
   /** 登出 */
   logout: () => Promise<void>;
   /** 最近一次错误信息 */
@@ -106,17 +108,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
     });
   }, []);
 
+  const setSession = useCallback((session: AuthSession) => {
+    const appliedUser = applyMatrix(session.currentUser);
+    setCurrentUser(appliedUser);
+    persistAuthSession({
+      ...session,
+      currentUser: appliedUser,
+    });
+    setError(null);
+  }, []);
+
   const login = useCallback(async (request: LoginRequest) => {
     setIsLoading(true);
     setError(null);
     try {
       const session = await apiLogin(request);
-      const appliedUser = applyMatrix(session.currentUser);
-      setCurrentUser(appliedUser);
-      persistAuthSession({
-        ...session,
-        currentUser: appliedUser,
-      });
+      setSession(session);
     } catch (err) {
       const message = err instanceof Error ? err.message : '登录失败';
       setError(message);
@@ -124,7 +131,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [setSession]);
 
   const logout = useCallback(async () => {
     setIsLoading(true);
@@ -151,11 +158,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       isLoading,
       isAuthenticated: !!currentUser && currentUser.isActive,
       login,
+      setSession,
       logout,
       error,
       clearError,
     }),
-    [currentUser, isLoading, login, logout, error, clearError]
+    [currentUser, isLoading, login, setSession, logout, error, clearError]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
