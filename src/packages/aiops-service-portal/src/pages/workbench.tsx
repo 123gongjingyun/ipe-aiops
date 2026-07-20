@@ -5372,7 +5372,7 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
               </button>
               {showQuickStartHint && (
                 <span className="inline-flex max-w-md items-center rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-sm leading-5 text-blue-700">
-                  也可以从申请单列表选择历史记录，点击"复制为新申请"快速发起。
+                  也可以从资源申请单列表选择历史记录，点击"复制为新申请"快速发起。
                 </span>
               )}
             </div>
