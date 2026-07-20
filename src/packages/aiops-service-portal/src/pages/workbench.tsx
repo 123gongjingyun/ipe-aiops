@@ -540,10 +540,43 @@ const requirementCategories: RequirementCategory[] = [
   },
 ];
 
+function extractBlocksForSharedCategory(
+  raw: string,
+  category: (typeof REQUEST_REQUIREMENT_CATEGORIES)[number],
+): string {
+  if (!raw.trim()) return '';
+  const blocks = raw.split(/(?=【)/).filter(Boolean);
+  const categoryBlocks = blocks.filter(block =>
+    category.projects.some(project => block.startsWith(`【${project.title}】`)),
+  );
+  return categoryBlocks.join('\n\n');
+}
+
+function getSharedCategoryRawText(
+  draft: Partial<DraftState>,
+  category: (typeof REQUEST_REQUIREMENT_CATEGORIES)[number],
+): string {
+  if (category.id === 'cloud') {
+    const separate = (draft as Partial<RequestRecordDraftPayload>).userRequirementCloudService || '';
+    if (separate.trim()) return separate;
+    const aggregate = draft.userRequirementCloud || '';
+    return extractBlocksForSharedCategory(aggregate, category);
+  }
+  if (category.id === 'middleware' || category.id === 'server') {
+    const aggregate = draft.userRequirementCloud || '';
+    return extractBlocksForSharedCategory(aggregate, category);
+  }
+  if (category.id === 'security') {
+    const aggregate = draft.userRequirementOps || '';
+    return extractBlocksForSharedCategory(aggregate, category);
+  }
+  return (draft[category.field as keyof Partial<DraftState>] as string | undefined) || '';
+}
+
 function parseRequirementAnswersFromDraft(draft: Partial<DraftState>): Record<string, string> {
   const answers: Record<string, string> = {};
-  requirementCategories.forEach(category => {
-    const raw = getDraftFieldValueForCategory(draft, category);
+  REQUEST_REQUIREMENT_CATEGORIES.forEach(category => {
+    const raw = getSharedCategoryRawText(draft, category);
     if (!raw.trim()) return;
     const blocks = raw.split(/(?=【)/).filter(Boolean);
     blocks.forEach(block => {
@@ -566,19 +599,6 @@ function isRequirementAnswerInvalid(project: RequirementProject, value: string) 
   if (!value.trim()) return false;
   if (project.allowExplicitNone === false && containsStandaloneNoneText(value)) return true;
   return false;
-}
-
-function getDraftFieldValueForCategory(
-  draft: Partial<DraftState>,
-  category: RequirementCategory,
-) {
-  if (category.id === 'middleware' || category.id === 'server') {
-    return draft.userRequirementCloud || '';
-  }
-  if (category.id === 'security') {
-    return draft.userRequirementOps || '';
-  }
-  return draft[category.field] || '';
 }
 
 function buildRequirementFieldText(
