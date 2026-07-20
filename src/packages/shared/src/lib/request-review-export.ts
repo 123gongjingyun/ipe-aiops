@@ -115,6 +115,7 @@ export async function downloadRequestReviewExcel(record: RequestRecord) {
   buildSectionSheet(workbook, model.userRequirementsSection);
   buildSectionSheet(workbook, model.applicationInfoSection);
   buildSectionSheet(workbook, model.reviewSummaryOverviewSection);
+  buildSectionSheet(workbook, model.talkingPointsSection);
   buildSectionSheet(workbook, model.approvalNoteSection);
 
   const buffer = await workbook.xlsx.writeBuffer();

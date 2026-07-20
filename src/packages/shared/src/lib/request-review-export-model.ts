@@ -4,11 +4,13 @@ import {
   REQUEST_REVIEW_APPROVAL_PLACEHOLDER,
   REQUEST_REVIEW_EMPTY_PLACEHOLDER,
   REQUEST_REVIEW_SECTION_TITLES,
+  REQUEST_REVIEW_TALKING_POINTS_EMPTY,
   USER_REQUIREMENT_FIELDS,
   USER_REQUIREMENT_SECTION_HINTS,
   type RequestReviewFieldDefinition,
   type RequestReviewSectionKey,
 } from './request-review-export-sections';
+import { buildRequestReviewTalkingPoints } from './request-review-talking-points';
 import { REQUEST_REQUIREMENT_CATEGORIES } from './request-requirement-definitions';
 
 type VmComponentConfig = {
@@ -70,6 +72,7 @@ export interface RequestReviewExportModel {
   userRequirementsSection: RequestReviewExportSection;
   applicationInfoSection: RequestReviewExportSection;
   reviewSummaryOverviewSection: RequestReviewExportSection;
+  talkingPointsSection: RequestReviewExportSection;
   approvalNoteSection: RequestReviewExportSection;
 }
 
@@ -291,6 +294,25 @@ function buildReviewSummaryOverview(record: RequestRecord): RequestReviewExportS
   };
 }
 
+function buildTalkingPointsSection(record: RequestRecord): RequestReviewExportSection {
+  const points = buildRequestReviewTalkingPoints(record);
+  const value = points.join('\n\n');
+
+  return {
+    key: 'talkingPoints',
+    title: REQUEST_REVIEW_SECTION_TITLES.talkingPoints,
+    fields: [
+      {
+        key: 'talkingPoints',
+        label: '评审交流话术建议',
+        value,
+        placeholder: REQUEST_REVIEW_TALKING_POINTS_EMPTY,
+        empty: value.trim().length === 0,
+      },
+    ],
+  };
+}
+
 function buildApprovalNoteSection(): RequestReviewExportSection {
   return {
     key: 'approvalNote',
@@ -313,6 +335,7 @@ export function buildRequestReviewExportModel(record: RequestRecord): RequestRev
   const userRequirementsSection = buildUserRequirementSection(draft);
   const applicationInfoSection = buildApplicationInfoSection(draft);
   const reviewSummaryOverviewSection = buildReviewSummaryOverview(record);
+  const talkingPointsSection = buildTalkingPointsSection(record);
   const approvalNoteSection = buildApprovalNoteSection();
 
   return {
@@ -327,6 +350,7 @@ export function buildRequestReviewExportModel(record: RequestRecord): RequestRev
     userRequirementsSection,
     applicationInfoSection,
     reviewSummaryOverviewSection,
+    talkingPointsSection,
     approvalNoteSection,
   };
 }

@@ -4114,7 +4114,7 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
     });
     setActiveRecordId(saved.id);
     setSaveNotice(`已保存申请单 ${saved.id}`);
-    window.setTimeout(() => navigate('/request-records'), 600);
+    window.setTimeout(() => navigate(`/request-review-export/${saved.id}`), 600);
   };
 
   const saveCurrentRequestRecord = () => {
