@@ -192,6 +192,8 @@ export function CenterLayout({ children }: CenterLayoutProps) {
   const location = useLocation();
   const { currentUser, logout } = useAuth();
   const isLoginPage = location.pathname === '/login';
+  // 帮助中心对所有登录用户开放，不依赖 menu.center.help 权限
+  const showHelpNav = !!currentUser && currentUser.isActive;
 
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -353,7 +355,7 @@ export function CenterLayout({ children }: CenterLayoutProps) {
           })}
       </nav>
 
-      {hasMenuAccess(currentUser, 'menu.center.help') && (
+      {showHelpNav && (
         <div className={`border-t border-border ${desktopNavCollapsed ? 'px-2 py-2' : 'px-3 py-2'}`}>
           <button
             title={desktopNavCollapsed ? '帮助中心' : undefined}

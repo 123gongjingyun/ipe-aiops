@@ -15,6 +15,8 @@ import {
   getStoredCurrentUser,
   persistAuthSession,
 } from './auth-storage';
+import { getPermissionMatrix, onPermissionMatrixSync } from './permission-matrix-store';
+import { applyPermissionMatrixToUser } from './permission-matrix-builder';
 
 export interface AuthContextValue {
   /** 当前登录用户，未登录为 null */
@@ -39,6 +41,13 @@ export interface AuthProviderProps {
   children: ReactNode;
 }
 
+function applyMatrix(user: AuthUser): AuthUser;
+function applyMatrix(user: AuthUser | null): AuthUser | null;
+function applyMatrix(user: AuthUser | null): AuthUser | null {
+  if (!user) return null;
+  return applyPermissionMatrixToUser(user, getPermissionMatrix());
+}
+
 export function AuthProvider({ children }: AuthProviderProps) {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -58,17 +67,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         // 本地已有 user 时先用它做快速恢复，避免白屏
         if (storedUser && storedUser.isActive && !cancelled) {
-          setCurrentUser(storedUser);
+          setCurrentUser(applyMatrix(storedUser));
         }
 
         // mock 阶段 token 可直接解析出用户；真实接口阶段可在这里调用 fetchCurrentUser
         const { fetchCurrentUser } = await import('./auth-api');
         const refreshedUser = await fetchCurrentUser(token);
         if (!cancelled) {
-          setCurrentUser(refreshedUser);
+          const appliedUser = applyMatrix(refreshedUser);
+          setCurrentUser(appliedUser);
           const session: AuthSession = {
             accessToken: token,
-            currentUser: refreshedUser,
+            currentUser: appliedUser,
             issuedAt: new Date().toISOString(),
           };
           persistAuthSession(session);
@@ -89,13 +99,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
   }, []);
 
+  /** 监听权限矩阵变化，实时刷新当前用户生效权限 */
+  useEffect(() => {
+    return onPermissionMatrixSync(() => {
+      setCurrentUser(prev => applyMatrix(prev));
+    });
+  }, []);
+
   const login = useCallback(async (request: LoginRequest) => {
     setIsLoading(true);
     setError(null);
     try {
       const session = await apiLogin(request);
-      setCurrentUser(session.currentUser);
-      persistAuthSession(session);
+      const appliedUser = applyMatrix(session.currentUser);
+      setCurrentUser(appliedUser);
+      persistAuthSession({
+        ...session,
+        currentUser: appliedUser,
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : '登录失败';
       setError(message);

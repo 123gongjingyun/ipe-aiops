@@ -174,9 +174,7 @@ function AppContent() {
               path="/help"
               element={
                 <RequireAuth>
-                  <RequireMenuAccess menuKey="menu.center.help">
-                    <Help />
-                  </RequireMenuAccess>
+                  <Help />
                 </RequireAuth>
               }
             />
@@ -184,9 +182,7 @@ function AppContent() {
               path="/handbook"
               element={
                 <RequireAuth>
-                  <RequireMenuAccess menuKey="menu.center.help">
-                    <Handbook />
-                  </RequireMenuAccess>
+                  <Handbook />
                 </RequireAuth>
               }
             />

@@ -124,7 +124,8 @@ export function PortalLayout({ children }: PortalLayoutProps) {
   const isLoginPage = location.pathname === '/login';
 
   const filteredNavItems = navItems.filter(item => hasMenuAccess(currentUser, item.menuKey));
-  const canAccessHelp = hasMenuAccess(currentUser, 'menu.portal.help');
+  // 帮助中心对所有登录用户开放，不依赖 menu.portal.help 权限
+  const showHelpNav = !!currentUser && currentUser.isActive;
 
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -227,7 +228,7 @@ export function PortalLayout({ children }: PortalLayoutProps) {
         })}
       </nav>
 
-      {canAccessHelp && (
+      {showHelpNav && (
         <div className={`border-t border-border ${desktopNavCollapsed ? 'px-2 py-2' : 'px-3 py-2'}`}>
           <button
             title={desktopNavCollapsed ? '帮助中心' : undefined}

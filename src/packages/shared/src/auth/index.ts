@@ -2,6 +2,9 @@
 export * from './auth-types';
 export * from './auth-storage';
 export * from './auth-permissions';
+export * from './permission-matrix-types';
+export * from './permission-matrix-store';
+export * from './permission-matrix-builder';
 export * from './mock-auth';
 export * from './auth-api';
 export { AuthProvider, useAuth } from './auth-context';

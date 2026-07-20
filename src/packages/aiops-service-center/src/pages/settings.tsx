@@ -58,6 +58,7 @@ import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { PageHeader } from '../components/page-header';
 import { DEFAULT_PLATFORM_BRANDING, loadPlatformBranding, savePlatformBranding } from '../lib/platform-branding';
 import { downloadStyledExcel } from '../lib/export-table';
+import { PermissionMatrixPanel } from '../components/permission-matrix-panel';
 const SchemaTemplatesPage = lazy(() => import('./service-catalog/templates'));
 
 const TABS = [
@@ -66,6 +67,7 @@ const TABS = [
   { key: 'templates', label: '表单模板', icon: Workflow },
   { key: 'config-profiles', label: '套餐与定价', icon: Settings2 },
   { key: 'roles', label: '角色与用户', icon: Users },
+  { key: 'permissions', label: '权限配置', icon: ShieldCheck },
   { key: 'approval', label: '审批流程', icon: ShieldCheck },
   { key: 'security', label: '账号与安全', icon: KeyRound },
 ] as const;
@@ -2507,6 +2509,10 @@ export default function SettingsPage() {
             ))}
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="permissions">
+          <PermissionMatrixPanel />
         </TabsContent>
 
         <TabsContent value="approval">

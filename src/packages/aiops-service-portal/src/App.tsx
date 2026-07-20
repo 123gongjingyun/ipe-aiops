@@ -243,9 +243,7 @@ function AppContent() {
               path="/help"
               element={
                 <RequireAuth>
-                  <RequireMenuAccess menuKey="menu.portal.help">
-                    <Help />
-                  </RequireMenuAccess>
+                  <Help />
                 </RequireAuth>
               }
             />
@@ -253,9 +251,7 @@ function AppContent() {
               path="/handbook"
               element={
                 <RequireAuth>
-                  <RequireMenuAccess menuKey="menu.portal.help">
-                    <Handbook />
-                  </RequireMenuAccess>
+                  <Handbook />
                 </RequireAuth>
               }
             />
@@ -267,6 +263,7 @@ function AppContent() {
                 </RequireAuth>
               }
             />
+            <Route path="*" element={<RequireAuth><div className="p-8 text-center text-slate-500">页面不存在</div></RequireAuth>} />
           </Routes>
         </ErrorBoundary>
       </Suspense>
