@@ -189,6 +189,8 @@ export { Label } from './components/ui/label';
 export { Switch } from './components/ui/switch';
 export { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from './components/ui/dialog';
 export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from './components/ui/tooltip';
+export { ToastProvider, useToast, toast } from './components/ui/sonner';
+export type { ToastOptions } from './components/ui/sonner';
 export { Sheet, SheetTrigger, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from './components/ui/sheet';
 
 // Business Components
