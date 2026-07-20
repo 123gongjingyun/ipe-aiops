@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
+  Check,
   ChevronDown,
   ChevronUp,
   CircleHelp,
@@ -5337,25 +5338,25 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
               <button
                 type="button"
                 onClick={() => setMode('assistant')}
-                className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors ${
+                className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-bold transition-all ${
                   mode === 'assistant'
-                    ? 'border-emerald-400 bg-emerald-100 text-emerald-800 shadow-sm'
-                    : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                    ? 'border-emerald-500 bg-emerald-100 text-emerald-900 shadow-[0_0_0_2px_rgba(16,185,129,0.25)]'
+                    : 'border-slate-200 bg-white/70 text-slate-500 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700'
                 }`}
               >
-                <ListChecks className="h-4 w-4" />
+                {mode === 'assistant' ? <Check className="h-4 w-4" /> : <ListChecks className="h-4 w-4" />}
                 引导填写
               </button>
               <button
                 type="button"
                 onClick={() => setMode('direct')}
-                className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors ${
+                className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-bold transition-all ${
                   mode === 'direct'
-                    ? 'border-amber-400 bg-amber-100 text-amber-800 shadow-sm'
-                    : 'border-amber-200 bg-amber-50/70 text-amber-700 hover:border-amber-300 hover:bg-amber-100'
+                    ? 'border-amber-500 bg-amber-100 text-amber-900 shadow-[0_0_0_2px_rgba(245,158,11,0.25)]'
+                    : 'border-slate-200 bg-white/70 text-slate-500 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700'
                 }`}
               >
-                <LayoutTemplate className="h-4 w-4" />
+                {mode === 'direct' ? <Check className="h-4 w-4" /> : <LayoutTemplate className="h-4 w-4" />}
                 直接填写
               </button>
               <button
@@ -5410,8 +5411,8 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
             <div className={`border-b px-5 py-3 ${modeTheme.contentBorder}`}>
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">填写区</div>
-                  <h2 className="mt-1 text-lg font-semibold text-slate-900">逐项确认</h2>
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-600">引导填写区</div>
+                  <h2 className="mt-1 text-lg font-semibold text-slate-900">按步骤逐项确认</h2>
                   <div className="mt-1 text-xs text-slate-500">你已明确资源类型，请按规格、容量、高可用和评审关注点逐项确认或补充。</div>
                 </div>
               </div>
