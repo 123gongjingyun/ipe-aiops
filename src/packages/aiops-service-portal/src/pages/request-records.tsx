@@ -14,7 +14,7 @@ import {
   useRequestRecords,
   validateRequestReviewExport,
 } from '@aiops/shared';
-import { ArrowRight, ChevronLeft, ChevronRight, Download, FileStack, FileText, Filter, PencilLine, RotateCcw, Trash2 } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight, Download, FileStack, FileText, Filter, PencilLine, RotateCcw, Trash2, Copy, ChevronDown } from 'lucide-react';
 
 const PAGE_SIZE_OPTIONS = [5, 10, 20];
 
@@ -79,9 +79,9 @@ export function RequestRecords() {
   const [draftFilterKeyword, setDraftFilterKeyword] = useState('');
   const [appliedFilterField, setAppliedFilterField] = useState<FilterField>('title');
   const [appliedFilterKeyword, setAppliedFilterKeyword] = useState('');
-  const [summaryRecordId, setSummaryRecordId] = useState<string | null>(null);
   const [deleteRecordId, setDeleteRecordId] = useState<string | null>(null);
   const [validationResult, setValidationResult] = useState<RequestReviewExportValidationResult | null>(null);
+  const [openExportMenuId, setOpenExportMenuId] = useState<string | null>(null);
 
   const filteredRecords = useMemo(() => {
     const keyword = appliedFilterKeyword.trim().toLowerCase();
@@ -97,7 +97,6 @@ export function RequestRecords() {
 
   const currentPageIds = pagedRecords.map(record => record.id);
   const selectedRecords = filteredRecords.filter(record => selectedIds.includes(record.id));
-  const summaryRecord = records.find(record => record.id === summaryRecordId) || null;
   const deleteRecord = records.find(record => record.id === deleteRecordId) || null;
   const allCurrentPageSelected = currentPageIds.length > 0 && currentPageIds.every(id => selectedIds.includes(id));
   const someCurrentPageSelected = currentPageIds.some(id => selectedIds.includes(id));
@@ -140,7 +139,7 @@ export function RequestRecords() {
     markRequestRecordsExported(selectedRecords.map(record => record.id));
   };
 
-  const handleExportSingle = (id: string) => {
+  const handleExportExcel = (id: string) => {
     const record = records.find(item => item.id === id);
     if (!record) return;
     const validation = validateRequestReviewExport(record);
@@ -155,10 +154,28 @@ export function RequestRecords() {
     })();
   };
 
+  const handleExportPdf = (id: string) => {
+    const record = records.find(item => item.id === id);
+    if (!record) return;
+    const validation = validateRequestReviewExport(record);
+    if (!validation.ready) {
+      setValidationResult(validation);
+      return;
+    }
+    startTransition(() => {
+      navigate(`/request-review-export/${id}?autoExport=pdf`);
+    });
+    markRequestRecordsExported([id]);
+  };
+
   const handleOpenReview = (id: string) => {
     startTransition(() => {
       navigate(`/request-review-export/${id}`);
     });
+  };
+
+  const handleToggleExportMenu = (id: string) => {
+    setOpenExportMenuId(current => (current === id ? null : id));
   };
 
   const handleDeleteRecord = () => {
@@ -364,14 +381,16 @@ export function RequestRecords() {
                       <td className="px-4 py-4 text-slate-500">{record.updatedAt}</td>
                       <td className="px-4 py-4">
                         <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setSummaryRecordId(record.id)}
-                            className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50"
-                          >
-                            <FileText className="h-3.5 w-3.5" />
-                            查看摘要
-                          </button>
+                          {(record.stage === '草稿' || record.stage === '已导出待评审') && (
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/${record.mode === 'direct' ? 'direct-workbench' : 'guided-workbench'}?product=${record.product}&action=clone&sourceId=${record.id}`)}
+                              className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                              复制为新申请
+                            </button>
+                          )}
                           {record.stage === '草稿' && (
                             <button
                               type="button"
@@ -380,16 +399,6 @@ export function RequestRecords() {
                             >
                               <PencilLine className="h-3.5 w-3.5" />
                               继续编辑
-                            </button>
-                          )}
-                          {record.stage === '已导出待评审' && (
-                            <button
-                              type="button"
-                              onClick={() => navigate(`/${record.mode === 'direct' ? 'direct-workbench' : 'guided-workbench'}?product=${record.product}&action=clone&sourceId=${record.id}`)}
-                              className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50"
-                            >
-                              <PencilLine className="h-3.5 w-3.5" />
-                              基于此再发起
                             </button>
                           )}
                           {record.stage !== '已转工单' && (
@@ -402,14 +411,35 @@ export function RequestRecords() {
                                 <FileText className="h-3.5 w-3.5" />
                                 评审预览
                               </button>
-                              <button
-                                type="button"
-                                onClick={() => handleExportSingle(record.id)}
-                                className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50"
-                              >
-                                <Download className="h-3.5 w-3.5" />
-                                导出 Excel
-                              </button>
+                              <div className="relative">
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleExportMenu(record.id)}
+                                  className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50"
+                                >
+                                  <Download className="h-3.5 w-3.5" />
+                                  导出表单
+                                  <ChevronDown className="h-3 w-3" />
+                                </button>
+                                {openExportMenuId === record.id && (
+                                  <div className="absolute right-0 z-10 mt-1 w-32 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+                                    <button
+                                      type="button"
+                                      onClick={() => { handleExportExcel(record.id); setOpenExportMenuId(null); }}
+                                      className="block w-full px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50"
+                                    >
+                                      导出 Excel
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => { handleExportPdf(record.id); setOpenExportMenuId(null); }}
+                                      className="block w-full px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50"
+                                    >
+                                      导出 PDF
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
                             </>
                           )}
                           <button
@@ -446,62 +476,6 @@ export function RequestRecords() {
           </div>
         </div>
       </section>
-
-      <Dialog open={Boolean(summaryRecord)} onOpenChange={open => { if (!open) setSummaryRecordId(null); }}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>申请单摘要</DialogTitle>
-          </DialogHeader>
-          {summaryRecord && (
-            <div className="space-y-5">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-4">
-                <div className="text-lg font-semibold text-slate-900">{summaryRecord.title}</div>
-                <div className="mt-2 flex flex-wrap gap-4 text-sm text-slate-500">
-                  <span>申请单号：{summaryRecord.id}</span>
-                  <span>阶段：{summaryRecord.stage}</span>
-                  <span>环境：{summaryRecord.environment}</span>
-                  <span>申请人：{summaryRecord.owner}</span>
-                </div>
-                <p className="mt-3 text-sm leading-6 text-slate-600">{summaryRecord.summary}</p>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
-                  <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">基础信息</div>
-                  <div className="mt-3 space-y-2 text-sm text-slate-700">
-                    <div>系统名称：{summaryRecord.draft.systemName || '未填写'}</div>
-                    <div>应用名称：{summaryRecord.draft.applicationName || '未填写'}</div>
-                    <div>使用对象：{summaryRecord.draft.userType || '未填写'}</div>
-                    <div>应用形态：{summaryRecord.draft.appType || '未填写'}</div>
-                    <div>访问终端：{summaryRecord.draft.clientType || '未填写'}</div>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
-                  <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">网络与资源</div>
-                  <div className="mt-3 space-y-2 text-sm text-slate-700">
-                    <div>访问与网络：{summaryRecord.draft.accessScope || '未填写'}</div>
-                    <div>资源诉求：{summaryRecord.draft.resourceNeed || '未填写'}</div>
-                    <div>SLA / 安全 / 容灾：{summaryRecord.draft.slaRequirement || '未填写'}</div>
-                    <div>架构材料说明：{summaryRecord.draft.architectureNote || '未填写'}</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid gap-4">
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
-                  <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">业务目标</div>
-                  <div className="mt-3 text-sm leading-6 text-slate-700">{summaryRecord.draft.businessGoal || '未填写'}</div>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
-                  <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">对接系统</div>
-                  <div className="mt-3 text-sm leading-6 text-slate-700">{summaryRecord.draft.integrationSystems || '未填写'}</div>
-                </div>
-              </div>
-            </div>
-          )}
-      </DialogContent>
-      </Dialog>
 
       <Dialog open={Boolean(validationResult)} onOpenChange={open => { if (!open) setValidationResult(null); }}>
         <DialogContent className="max-w-2xl">

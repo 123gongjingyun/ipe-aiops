@@ -3928,6 +3928,10 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
   const [showWorkflowHint, setShowWorkflowHint] = useState(false);
   const [exportValidationResult, setExportValidationResult] = useState<RequestReviewExportValidationResult | null>(null);
   const product = searchParams.get('product') || '';
+  const action = searchParams.get('action') || '';
+  const sourceId = searchParams.get('sourceId') || '';
+  const isCloneMode = action === 'clone' && Boolean(sourceId);
+  const sourceRecord = isCloneMode ? getRequestRecord(sourceId) : null;
 
   const getRequirementKey = (categoryId: string, projectId: string) => `${categoryId}/${projectId}`;
 
@@ -4028,7 +4032,12 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
     const record = getRequestRecord(sourceId);
     if (!record) return;
 
-    setDraft(normalizeDraft(record.draft));
+    const sourceDraft = normalizeDraft(record.draft);
+    if (action === 'clone') {
+      sourceDraft.systemCode = '';
+    }
+
+    setDraft(sourceDraft);
     setVmComponentConfigs(parseVmComponentConfigs(record.draft.vmComponentConfigs || ''));
     setRequirementAnswers(parseRequirementAnswersFromDraft(record.draft));
     setMode(record.mode);
@@ -5349,6 +5358,12 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
         </div>
       )}
 
+      {isCloneMode && sourceRecord && (
+        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
+          当前基于申请单 <span className="font-semibold">{sourceRecord.id}</span> 创建新申请，保存后将生成一条新记录。
+        </div>
+      )}
+
       {mode === 'assistant' ? (
         <div className="mt-6 flex flex-col gap-6 md:flex-row">
           <div className={`min-w-0 flex-1 rounded-[22px] border shadow-sm ${modeTheme.contentBorder} ${modeTheme.contentBg}`}>
@@ -5390,7 +5405,7 @@ function Workbench({ initialMode }: { initialMode: WorkbenchMode }) {
             >
               <CircleHelp className="h-3.5 w-3.5" />
             </button>
-            <span>填写完成后再保存申请单，预览导出将在这里衔接。</span>
+            <span>填写完成后再保存申请单，预览导出将在这里衔接；也可以从申请单列表选择历史记录，点击"复制为新申请"快速发起。</span>
           </div>
           {showWorkflowHint && (
             <div className="mt-2 text-xs leading-5 text-slate-400">
